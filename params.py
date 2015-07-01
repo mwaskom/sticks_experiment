@@ -28,14 +28,15 @@ base = dict(
     # Stick parameters
     lengths=(.5, .25),
     widths=(.15, .075),
-    oris=(35, -35),
+    oris=(45, -45),
     colors=((0.93226, 0.53991, 0.26735),
             (0., 0.74055, 0.22775)),
 
     # Field parameters
     field_radius=4,
     field_offset=0,
-    sticks_per_field=100,
+    disk_radius=.5,
+    disk_candidates=10,
 
 )
 

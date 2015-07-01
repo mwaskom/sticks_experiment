@@ -118,50 +118,71 @@ class StickField(object):
                                               texRes=128)
 
     def initial_positions(self):
-
+        """Find positions using poisson-disc sampling."""
+        # See http://bost.ocks.org/mike/algorithms/
         uniform = self.random.uniform
         randint = self.random.randint
 
+        # Parameters of the sampling algorithm
         field_radius = self.p.field_radius
-        radius = .5
-        check = 10
+        radius = self.p.disk_radius
+        candidates = self.p.disk_candidates
 
-        a, r = uniform(0, 2 * np.pi), uniform(field_radius)
-        x, y = r * np.cos(a), r * np.sin(a)
-        samples = [(x ,y)]
-        queue = [(x, y)]
+        # Start in the middle of the field.
+        # This will get removed later, but it will ensure that
+        # space around the fixation point is not crowded
+        samples = [(0, 0)]
+        queue = [(0, 0)]
 
         while queue:
+
+            # Pick a sample to expand from
             s_idx = randint(len(queue))
             s_x, s_y = queue[s_idx]
-            for i in xrange(check):
+
+            for i in xrange(candidates):
+
+                # Generate a candidate from this sample
                 a = uniform(0, 2 * np.pi)
                 r = uniform(radius, 2 * radius)
                 x, y = s_x + r * np.cos(a), s_y + r * np.sin(a)
-                close = (cdist(samples, [(x, y)]) > radius).all()
-                if (np.sqrt(x ** 2 + y ** 2) < field_radius) & close:
+
+                # Check the two conditions to accept the candidate
+                in_field = np.sqrt(x ** 2 + y ** 2) < field_radius
+                in_ring = np.all(cdist(samples, [(x, y)]) > radius)
+
+                if in_field and in_ring:
+                    # Accept the candidate
                     samples.append((x, y))
                     queue.append((x, y))
                     break
-            if (i + 1) == check:
+
+            if (i + 1) == candidates:
+                # We've exhausted the particular sample
                 queue.pop(s_idx)
 
-        return np.array(samples)
+        # Remove first sample to give space around the fix point
+        samples = np.array(samples)[1:]
+
+        return samples
 
     def update(self, p_lengths, p_widths, p_colors, p_oris):
 
-        #self.update_positions()
+        self.update_positions()
         self.update_sizes(p_lengths, p_widths)
         self.update_colors(p_colors)
         self.update_oris(p_oris)
 
     def update_positions(self):
 
-        theta = self.random.uniform(0, 2 * np.pi, self.n)
         x, y = self.sticks.xys.T
-        theta, r = np.arccos(x / r)
-        r = self.p.field_radius * np.sqrt(self.random.uniform(0, 1, self.n))
-        x, y = r * np.cos(theta), r * np.sin(theta)
+        rho = np.sqrt(x ** 2 + y ** 2)
+        phi = np.arctan2(y, x)
+
+        phi += self.random.uniform(0, 2 * np.pi)
+        phi %= 2 * np.pi
+
+        x, y = rho * np.cos(phi), rho * np.sin(phi)
         self.sticks.setXYs(np.c_[x, y])
 
     def update_sizes(self, p_w, p_l):
