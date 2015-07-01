@@ -6,6 +6,7 @@ from copy import copy
 from textwrap import dedent
 
 import numpy as np
+from scipy.spatial.distance import cdist
 import pandas as pd
 
 from colormath.color_objects import LCHabColor, sRGBColor
@@ -95,7 +96,6 @@ class StickField(object):
     def __init__(self, win, p, side):
 
         self.p = p
-        self.n = p.sticks_per_field
         self.random = np.random.RandomState()
 
         x_pos = p.field_offset * dict(left=-1, right=1)[side]
@@ -105,7 +105,11 @@ class StickField(object):
                                   fillColor=p.window_color,
                                   lineColor="white")
 
+        initial_xys = self.initial_positions()
+        self.n = len(initial_xys)
+
         self.sticks = visual.ElementArrayStim(win,
+                                              xys=initial_xys,
                                               nElements=self.n,
                                               fieldPos=(x_pos, 0),
                                               elementTex=None,
@@ -113,9 +117,40 @@ class StickField(object):
                                               interpolate=True,
                                               texRes=128)
 
+    def initial_positions(self):
+
+        uniform = self.random.uniform
+        randint = self.random.randint
+
+        field_radius = self.p.field_radius
+        radius = .5
+        check = 10
+
+        a, r = uniform(0, 2 * np.pi), uniform(field_radius)
+        x, y = r * np.cos(a), r * np.sin(a)
+        samples = [(x ,y)]
+        queue = [(x, y)]
+
+        while queue:
+            s_idx = randint(len(queue))
+            s_x, s_y = queue[s_idx]
+            for i in xrange(check):
+                a = uniform(0, 2 * np.pi)
+                r = uniform(radius, 2 * radius)
+                x, y = s_x + r * np.cos(a), s_y + r * np.sin(a)
+                close = (cdist(samples, [(x, y)]) > radius).all()
+                if (np.sqrt(x ** 2 + y ** 2) < field_radius) & close:
+                    samples.append((x, y))
+                    queue.append((x, y))
+                    break
+            if (i + 1) == check:
+                queue.pop(s_idx)
+
+        return np.array(samples)
+
     def update(self, p_lengths, p_widths, p_colors, p_oris):
 
-        self.update_positions()
+        #self.update_positions()
         self.update_sizes(p_lengths, p_widths)
         self.update_colors(p_colors)
         self.update_oris(p_oris)
@@ -123,6 +158,8 @@ class StickField(object):
     def update_positions(self):
 
         theta = self.random.uniform(0, 2 * np.pi, self.n)
+        x, y = self.sticks.xys.T
+        theta, r = np.arccos(x / r)
         r = self.p.field_radius * np.sqrt(self.random.uniform(0, 1, self.n))
         x, y = r * np.cos(theta), r * np.sin(theta)
         self.sticks.setXYs(np.c_[x, y])
@@ -130,13 +167,16 @@ class StickField(object):
     def update_sizes(self, p_w, p_l):
 
         thick, thin = self.p.widths
-        widths = np.r_[np.repeat(thick, self.n * p_w),
-                       np.repeat(thin, self.n * (1 - p_w))]
+        n_thick = np.round(self.n * p_w)
+        n_thin = self.n - n_thick
+        widths = np.r_[np.repeat(thick, n_thick), np.repeat(thin, n_thin)]
         widths = self.random.permutation(widths)
 
         long, short = self.p.lengths
-        lengths = np.r_[np.repeat(long, self.n * p_l),
-                        np.repeat(short, self.n * (1 - p_l))]
+        n_long = np.round(self.n * p_l)
+        n_short = self.n - n_long
+        lengths = np.r_[np.repeat(long, n_long),
+                        np.repeat(short, n_short)]
         lengths = self.random.permutation(lengths)
 
         sizes = np.c_[widths, lengths]
@@ -145,8 +185,10 @@ class StickField(object):
     def update_colors(self, p):
 
         red, green = self.p.colors
-        colors = np.r_[np.tile(red, self.n * p).reshape(-1, 3),
-                       np.tile(green, self.n * (1 - p)).reshape(-1, 3)]
+        n_red = np.round(self.n * p)
+        n_green = self.n - n_red
+        colors = np.r_[np.tile(red, n_red).reshape(-1, 3),
+                       np.tile(green, n_green).reshape(-1, 3)]
 
         colors = self.random.permutation(colors)
         self.sticks.setColors(colors)
@@ -154,8 +196,10 @@ class StickField(object):
     def update_oris(self, p):
 
         left, right = self.p.oris
-        oris = np.r_[np.repeat(left, self.n * p),
-                     np.repeat(right, self.n * (1 - p))]
+        n_left = np.round(self.n * p)
+        n_right = self.n - n_left
+        oris = np.r_[np.repeat(left, n_left),
+                     np.repeat(right, n_right)]
 
         oris = self.random.permutation(oris)
         self.sticks.setOris(oris)
