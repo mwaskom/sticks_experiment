@@ -31,12 +31,13 @@ base = dict(
     oris=(45, -45),
     hues=(60, 140),
 
+    # Fixed color parameters
     chroma=80,
     lightness=70,
 
-    # Field parameters
-    field_radius=4,
-    field_offset=0,
+    # Stick array parameters
+    array_radius=4,
+    array_offset=0,
     disk_radius=.5,
     disk_candidates=20,
 

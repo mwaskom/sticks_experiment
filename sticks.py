@@ -40,8 +40,8 @@ def main(arglist):
                         lineColor=p.fix_iti_color,
                         size=p.fix_size)
 
-    # The main stimulus fields
-    array = FieldArray(win, p)
+    # The main stimulus arrays
+    array = StickArray(win, p)
 
     stims = dict(
 
@@ -51,82 +51,35 @@ def main(arglist):
     )
 
 
-class FieldArray(object):
-
+class StickArray(object):
+    """Array of "sticks" that vary on four dimensions."""
     def __init__(self, win, p):
 
-        self.fields = (StickField(win, p, "left"),
-                       StickField(win, p, "right"))
-
-    def update(self, p_widths, p_lengths, p_colors, p_oris):
-
-        self.update_positions()
-        self.update_sizes(p_widths, p_lengths)
-        self.update_colors(p_colors)
-        self.update_oris(p_oris)
-
-    def update_positions(self):
-
-        for field in self.fields:
-            field.update_positions()
-
-    def update_sizes(self, p_w, p_l):
-
-        for field, p_w_f, p_l_f in zip(self.fields, p_w, p_l):
-            field.update_sizes(p_w_f, p_l_f)
-
-    def update_colors(self, p):
-
-        for field, p_f in zip(self.fields, p):
-            field.update_colors(p_f)
-
-    def update_oris(self, p):
-
-        for field, p_f in zip(self.fields, p):
-            field.update_oris(p_f)
-
-    def draw(self):
-
-        for field in self.fields:
-            field.draw()
-
-
-class StickField(object):
-
-    def __init__(self, win, p, side):
-
+        self.win = win
         self.p = p
         self.random = np.random.RandomState()
 
         self.rgb_colors = self.lch_to_rgb(p)
 
-        x_pos = p.field_offset * dict(left=-1, right=1)[side]
-
-        self.edge = visual.Circle(win, p.field_radius, 128,
-                                  pos=(x_pos, 0),
+        self.edge = visual.Circle(win, p.array_radius, 128,
                                   fillColor=p.window_color,
                                   lineColor="white")
 
+        self.new_array()
+
+    def new_array(self):
+        """Initialize new stick positions."""
         initial_xys = self.initial_positions()
-        self.n = len(initial_xys)
-
-        self.sticks = visual.ElementArrayStim(win,
-                                              xys=initial_xys,
-                                              nElements=self.n,
-                                              fieldPos=(x_pos, 0),
-                                              elementTex=None,
-                                              elementMask="sqr",
-                                              interpolate=True,
-                                              texRes=128)
-
-    def lch_to_rgb(self, p):
-
-        rgbs = []
-        for hue in p.hues:
-            lch = LCHabColor(p.lightness, p.chroma, hue)
-            rgb = convert_color(lch, sRGBColor).get_value_tuple()
-            rgbs.append(rgb)
-        return tuple(rgbs)
+        n_sticks = len(initial_xys)
+        sticks = visual.ElementArrayStim(self.win,
+                                         xys=initial_xys,
+                                         nElements=n_sticks,
+                                         elementTex=None,
+                                         elementMask="sqr",
+                                         interpolate=True,
+                                         texRes=128)
+        self.sticks = sticks
+        self.n = n_sticks
 
     def initial_positions(self):
         """Find positions using poisson-disc sampling."""
@@ -135,11 +88,11 @@ class StickField(object):
         randint = self.random.randint
 
         # Parameters of the sampling algorithm
-        field_radius = self.p.field_radius
+        array_radius = self.p.array_radius
         radius = self.p.disk_radius
         candidates = self.p.disk_candidates
 
-        # Start in the middle of the field.
+        # Start in the middle of the array.
         # This will get removed later, but it will ensure that
         # space around the fixation point is not crowded
         samples = [(0, 0)]
@@ -159,10 +112,10 @@ class StickField(object):
                 x, y = s_x + r * np.cos(a), s_y + r * np.sin(a)
 
                 # Check the two conditions to accept the candidate
-                in_field = np.sqrt(x ** 2 + y ** 2) < field_radius
+                in_array = np.sqrt(x ** 2 + y ** 2) < array_radius
                 in_ring = np.all(cdist(samples, [(x, y)]) > radius)
 
-                if in_field and in_ring:
+                if in_array and in_ring:
                     # Accept the candidate
                     samples.append((x, y))
                     queue.append((x, y))
@@ -176,6 +129,15 @@ class StickField(object):
         samples = np.array(samples)[1:]
 
         return samples
+
+    def lch_to_rgb(self, p):
+        """Convert the color values from Lch to RGB."""
+        rgbs = []
+        for hue in p.hues:
+            lch = LCHabColor(p.lightness, p.chroma, hue)
+            rgb = convert_color(lch, sRGBColor).get_value_tuple()
+            rgbs.append(rgb)
+        return tuple(rgbs)
 
     def update(self, p_widths, p_lengths, p_colors, p_oris):
 
