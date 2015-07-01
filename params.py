@@ -29,14 +29,16 @@ base = dict(
     lengths=(.5, .25),
     widths=(.15, .075),
     oris=(45, -45),
-    colors=((0.93226, 0.53991, 0.26735),
-            (0., 0.74055, 0.22775)),
+    hues=(60, 140),
+
+    chroma=80,
+    lightness=70,
 
     # Field parameters
     field_radius=4,
     field_offset=0,
     disk_radius=.5,
-    disk_candidates=10,
+    disk_candidates=20,
 
 )
 

@@ -98,6 +98,8 @@ class StickField(object):
         self.p = p
         self.random = np.random.RandomState()
 
+        self.rgb_colors = self.lch_to_rgb(p)
+
         x_pos = p.field_offset * dict(left=-1, right=1)[side]
 
         self.edge = visual.Circle(win, p.field_radius, 128,
@@ -116,6 +118,15 @@ class StickField(object):
                                               elementMask="sqr",
                                               interpolate=True,
                                               texRes=128)
+
+    def lch_to_rgb(self, p):
+
+        rgbs = []
+        for hue in p.hues:
+            lch = LCHabColor(p.lightness, p.chroma, hue)
+            rgb = convert_color(lch, sRGBColor).get_value_tuple()
+            rgbs.append(rgb)
+        return tuple(rgbs)
 
     def initial_positions(self):
         """Find positions using poisson-disc sampling."""
@@ -166,10 +177,10 @@ class StickField(object):
 
         return samples
 
-    def update(self, p_lengths, p_widths, p_colors, p_oris):
+    def update(self, p_widths, p_lengths, p_colors, p_oris):
 
         self.update_positions()
-        self.update_sizes(p_lengths, p_widths)
+        self.update_sizes(p_widths, p_lengths)
         self.update_colors(p_colors)
         self.update_oris(p_oris)
 
@@ -205,7 +216,7 @@ class StickField(object):
 
     def update_colors(self, p):
 
-        red, green = self.p.colors
+        red, green = self.rgb_colors
         n_red = np.round(self.n * p)
         n_green = self.n - n_red
         colors = np.r_[np.tile(red, n_red).reshape(-1, 3),
