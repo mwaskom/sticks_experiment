@@ -73,31 +73,23 @@ class StickArray(object):
         self.p_widths = (.5, .5)
         self.p_lengths = (.5, .5)
 
-        # Initialize the feature values
-        self.hues = self.random_hues(self.n)
-        self.tilts = self.random_tilts(self.n)
-        self.widths = self.random_widths(self.n)
-        self.lengths = self.random_lengths(self.n)
-
-        # Initialize the object to track which sticks are being shown
-        self.on = np.ones(self.n, bool)
-        self.off_frames = np.zeros(self.n)
+        # Initialize the feature values and twinkle trackers
+        self.reset()
 
     def new_array(self):
         """Initialize new stick positions."""
-        initial_xys = self.initial_positions()
+        initial_xys = self.poisson_disc_sample()
         n_sticks = len(initial_xys)
         sticks = visual.ElementArrayStim(self.win,
                                          xys=initial_xys,
                                          nElements=n_sticks,
                                          elementTex=None,
-                                         elementMask="sqr",
-                                         interpolate=True,
-                                         texRes=128)
+                                         elementMask="sqr")
+
         self.sticks = sticks
         self.n = n_sticks
 
-    def initial_positions(self):
+    def poisson_disc_sample(self):
         """Find positions using poisson-disc sampling."""
         # See http://bost.ocks.org/mike/algorithms/
         uniform = self.random.uniform
@@ -170,6 +162,28 @@ class StickArray(object):
         x, y = rho * np.cos(phi), rho * np.sin(phi)
         self.sticks.setXYs(np.c_[x, y])
 
+    def reset(self):
+
+        # Randomize the stick positions
+        self.rotate_array()
+
+        # Initialize the feature values
+        self.hues = self.random_hues(self.n)
+        self.tilts = self.random_tilts(self.n)
+        self.widths = self.random_widths(self.n)
+        self.lengths = self.random_lengths(self.n)
+
+        # Initialize the object to track which sticks are being shown
+        self.on = np.ones(self.n, bool)
+        self.off_frames = np.zeros(self.n)
+
+        for _ in xrange(self.p.twinkle_burnin):
+            self.update()
+
+        self._on_log = []
+        # TODO build subordinate log object that can be pickled
+        # (or otherwise saved) for retrospective analysis
+
     def update(self):
 
         # Determine which sticks are turning off
@@ -194,11 +208,8 @@ class StickArray(object):
         self.widths[turning_on] = self.random_widths(n_on)
         self.lengths[turning_on] = self.random_lengths(n_on)
 
-        # Update the psychopy object
-        self.sticks.setColors(self.hues)
-        self.sticks.setOris(self.tilts)
-        self.sticks.setSizes(np.c_[self.widths, self.lengths])
-        self.sticks.setOpacities(self.on)
+        # Log the values
+        self._on_log.append(self.on.copy())
 
     def random_hues(self, n):
 
@@ -219,6 +230,17 @@ class StickArray(object):
 
     def draw(self):
 
+        # Update the psychopy object
+        self.sticks.setColors(self.hues)
+        self.sticks.setOris(self.tilts)
+        self.sticks.setSizes(np.c_[self.widths, self.lengths])
+        self.sticks.setOpacities(self.on)
+
         if self.p.debug:
             self.edge.draw()
         self.sticks.draw()
+
+    @property
+    def on_log(self):
+
+        return np.array(self._on_log)
