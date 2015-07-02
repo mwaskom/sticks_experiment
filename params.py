@@ -26,10 +26,10 @@ base = dict(
     trigger_keys=["5", "t"],
 
     # Stick parameters
-    lengths=(.5, .25),
-    widths=(.15, .075),
-    oris=(45, -45),
     hues=(60, 140),
+    tilts=(45, -45),
+    widths=(.15, .075),
+    lengths=(.5, .25),
 
     # Fixed color parameters
     chroma=80,
@@ -40,6 +40,11 @@ base = dict(
     array_offset=0,
     disk_radius=.5,
     disk_candidates=20,
+
+    # Twinkle parameters
+    twinkle_off_prob=.05,
+    twinkle_on_prob=.8,
+    twinkle_timeout=9,
 
 )
 

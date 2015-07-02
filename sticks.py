@@ -67,6 +67,22 @@ class StickArray(object):
 
         self.new_array()
 
+        # Initialize the feature probabilities
+        self.p_hues = (.5, .5)
+        self.p_tilts = (.5, .5)
+        self.p_widths = (.5, .5)
+        self.p_lengths = (.5, .5)
+
+        # Initialize the feature values
+        self.hues = self.random_hues(self.n)
+        self.tilts = self.random_tilts(self.n)
+        self.widths = self.random_widths(self.n)
+        self.lengths = self.random_lengths(self.n)
+
+        # Initialize the object to track which sticks are being shown
+        self.on = np.ones(self.n, bool)
+        self.off_frames = np.zeros(self.n)
+
     def new_array(self):
         """Initialize new stick positions."""
         initial_xys = self.initial_positions()
@@ -137,66 +153,69 @@ class StickArray(object):
             lch = LCHabColor(p.lightness, p.chroma, hue)
             rgb = convert_color(lch, sRGBColor).get_value_tuple()
             rgbs.append(rgb)
-        return tuple(rgbs)
+        return np.array(rgbs)
 
-    def update(self, p_widths, p_lengths, p_colors, p_oris):
-
-        self.update_positions()
-        self.update_sizes(p_widths, p_lengths)
-        self.update_colors(p_colors)
-        self.update_oris(p_oris)
-
-    def update_positions(self):
-
+    def rotate_array(self):
+        """Rotate the array of sticks by a random angle."""
+        # Get the corrent positions in polar coordinates
         x, y = self.sticks.xys.T
         rho = np.sqrt(x ** 2 + y ** 2)
         phi = np.arctan2(y, x)
 
+        # Add a random angle of rotation
         phi += self.random.uniform(0, 2 * np.pi)
         phi %= 2 * np.pi
 
+        # Convert back to cartesian coordinates and update
         x, y = rho * np.cos(phi), rho * np.sin(phi)
         self.sticks.setXYs(np.c_[x, y])
 
-    def update_sizes(self, p_w, p_l):
+    def update(self):
 
-        thick, thin = self.p.widths
-        n_thick = np.round(self.n * p_w)
-        n_thin = self.n - n_thick
-        widths = np.r_[np.repeat(thick, n_thick), np.repeat(thin, n_thin)]
-        widths = self.random.permutation(widths)
+        # Determine which sticks are turning off
+        turning_off = (self.random.uniform(size=self.n) <
+                       self.p.twinkle_off_prob)
+        self.on &= ~turning_off
 
-        long, short = self.p.lengths
-        n_long = np.round(self.n * p_l)
-        n_short = self.n - n_long
-        lengths = np.r_[np.repeat(long, n_long),
-                        np.repeat(short, n_short)]
-        lengths = self.random.permutation(lengths)
+        # Update the timeout counter
+        self.off_frames[~self.on] += 1
 
-        sizes = np.c_[widths, lengths]
-        self.sticks.setSizes(sizes)
+        # Determine which sticks are turning back on
+        turning_on = (self.random.uniform(size=self.n) <
+                      self.p.twinkle_on_prob)
+        turning_on &= self.off_frames > self.p.twinkle_timeout
+        self.on |= turning_on
+        self.off_frames[self.on] = 0
 
-    def update_colors(self, p):
+        # Find feature values for the new sticks
+        n_on = turning_on.sum()
+        self.hues[turning_on] = self.random_hues(n_on)
+        self.tilts[turning_on] = self.random_tilts(n_on)
+        self.widths[turning_on] = self.random_widths(n_on)
+        self.lengths[turning_on] = self.random_lengths(n_on)
 
-        red, green = self.rgb_colors
-        n_red = np.round(self.n * p)
-        n_green = self.n - n_red
-        colors = np.r_[np.tile(red, n_red).reshape(-1, 3),
-                       np.tile(green, n_green).reshape(-1, 3)]
+        # Update the psychopy object
+        self.sticks.setColors(self.hues)
+        self.sticks.setOris(self.tilts)
+        self.sticks.setSizes(np.c_[self.widths, self.lengths])
+        self.sticks.setOpacities(self.on)
 
-        colors = self.random.permutation(colors)
-        self.sticks.setColors(colors)
+    def random_hues(self, n):
 
-    def update_oris(self, p):
+        idx = self.random.choice([0, 1], n, p=self.p_hues)
+        return self.rgb_colors[idx]
 
-        left, right = self.p.oris
-        n_left = np.round(self.n * p)
-        n_right = self.n - n_left
-        oris = np.r_[np.repeat(left, n_left),
-                     np.repeat(right, n_right)]
+    def random_tilts(self, n):
 
-        oris = self.random.permutation(oris)
-        self.sticks.setOris(oris)
+        return self.random.choice(self.p.tilts, n, p=self.p_tilts)
+
+    def random_widths(self, n):
+
+        return self.random.choice(self.p.widths, n, p=self.p_widths)
+
+    def random_lengths(self, n):
+
+        return self.random.choice(self.p.lengths, n, p=self.p_widths)
 
     def draw(self):
 
