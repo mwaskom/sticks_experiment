@@ -53,7 +53,7 @@ def main(arglist):
 
 class StickArray(object):
     """Array of "sticks" that vary on four dimensions."""
-    def __init__(self, win, p):
+    def __init__(self, win, p, log=None):
 
         self.win = win
         self.p = p
@@ -75,6 +75,9 @@ class StickArray(object):
         self.p_tilt = .5
         self.p_width = .5
         self.p_length = .5
+
+        # Initialize the log object
+        self.log = StickLog() if log is None else log
 
         # Initialize the feature values and twinkle trackers
         self.reset()
@@ -166,7 +169,7 @@ class StickArray(object):
         self.sticks.setXYs(np.c_[x, y])
 
     def reset(self):
-
+        """Prepare the stimulus for a new trial."""
         # Randomize the stick positions
         self.rotate_array()
 
@@ -180,15 +183,14 @@ class StickArray(object):
         self.on = np.ones(self.n, bool)
         self.off_frames = np.zeros(self.n)
 
-        self._on_log = []
+        # "Burn-in" the stimulus so it starts with average properties
         for _ in xrange(self.p.twinkle_burnin):
-            self.update()
+            self.update(log=False)
 
-        self._on_log = []
-        # TODO build subordinate log object that can be pickled
-        # (or otherwise saved) for retrospective analysis
+        # Add a new trial to the log
+        self.log.new_trial()
 
-    def update(self):
+    def update(self, log=True):
 
         # Determine which sticks are turning off
         turning_off = (self.random.uniform(size=self.n) <
@@ -213,7 +215,12 @@ class StickArray(object):
         self.length_idx[turning_on] = self.random_idx(self.p_length, n_on)
 
         # Log the values
-        self._on_log.append(self.on.copy())
+        if log:
+            self.log.add_frame(self.on,
+                               self.hue_idx,
+                               self.tilt_idx,
+                               self.width_idx,
+                               self.length_idx)
 
     def random_idx(self, p, n):
 
@@ -247,7 +254,94 @@ class StickArray(object):
             self.edge.draw()
         self.sticks.draw()
 
-    @property
-    def on_log(self):
 
-        return np.array(self._on_log)
+class StickLog(object):
+    """Object to keep track of stimulus properties over the experiment.
+
+    The log for each attribute is an array with shape (trial, frame, object).
+
+    """
+    def __init__(self):
+
+        self.reset()
+
+    def reset(self):
+        """Reset the log for each attribute."""
+        self._on = []
+
+        for attr in ["hue", "tilt", "width", "length"]:
+            setattr(self, "_" + attr, [])
+            setattr(self, "_" + attr + "_on", [])
+
+    def new_trial(self):
+        """Add a list to catch frames from a new trial."""
+        self._on.append([])
+
+        for attr in ["hue", "tilt", "width", "length"]:
+            getattr(self, "_" + attr).append([])
+            getattr(self, "_" + attr + "_on").append([])
+
+    def add_frame(self, on, hue, tilt, width, length):
+        """Add data for each attribute."""
+        self._on[-1].append(on.copy())
+
+        self._hue[-1].append(hue.copy())
+        self._hue_on[-1].append(hue[on].copy())
+
+        self._tilt[-1].append(tilt.copy())
+        self._tilt_on[-1].append(tilt[on].copy())
+
+        self._width[-1].append(width.copy())
+        self._width_on[-1].append(width[on].copy())
+
+        self._length[-1].append(length.copy())
+        self._length_on[-1].append(length[on].copy())
+
+    @property
+    def on(self):
+        return np.array(self._on)
+
+    @property
+    def hue(self):
+        return np.array(self._hue)
+
+    @property
+    def tilt(self):
+        return np.array(self._tilt)
+
+    @property
+    def width(self):
+        return np.array(self._width)
+
+    @property
+    def length(self):
+        return np.array(self._length)
+
+    @property
+    def on_prop(self):
+        return np.array([np.mean(t) for t in self._on])
+
+    @property
+    def hue_prop(self):
+        return np.array([np.concatenate(t).mean() for t in self._hue_on])
+
+    @property
+    def tilt_prop(self):
+        return np.array([np.concatenate(t).mean() for t in self._tilt_on])
+
+    @property
+    def width_prop(self):
+        return np.array([np.concatenate(t).mean() for t in self._width_on])
+
+    @property
+    def length_prop(self):
+        return np.array([np.concatenate(t).mean() for t in self._length_on])
+
+    def save(self, fname):
+
+        data = dict()
+        for attr in ["on", "hue", "tilt", "width", "length"]:
+            data[attr] = getattr(self, attr)
+            data[attr + "_prop"] = getattr(self, attr + "_prop")
+
+        np.savez(fname, **data)
