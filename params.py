@@ -51,7 +51,7 @@ base = dict(
     twinkle_off_prob=.05,
     twinkle_on_prob=.5,
     twinkle_timeout=9,
-    twinkle_burnin=10,
+    twinkle_burnin=20,
 
 )
 

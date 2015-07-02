@@ -57,21 +57,24 @@ class StickArray(object):
 
         self.win = win
         self.p = p
+        self.rgb_colors = self.lch_to_rgb(p)
         self.random = np.random.RandomState()
 
-        self.rgb_colors = self.lch_to_rgb(p)
-
-        self.edge = visual.Circle(win, p.array_radius, 128,
+        # This will draw an edge around the stimulus for debugging
+        self.edge = visual.Circle(win,
+                                  p.array_radius + p.disk_radius / 2,
+                                  edges=128,
                                   fillColor=p.window_color,
                                   lineColor="white")
 
+        # Initialize the stick positions
         self.new_array()
 
         # Initialize the feature probabilities
-        self.p_hues = (.5, .5)
-        self.p_tilts = (.5, .5)
-        self.p_widths = (.5, .5)
-        self.p_lengths = (.5, .5)
+        self.p_hue = .5
+        self.p_tilt = .5
+        self.p_width = .5
+        self.p_length = .5
 
         # Initialize the feature values and twinkle trackers
         self.reset()
@@ -168,15 +171,16 @@ class StickArray(object):
         self.rotate_array()
 
         # Initialize the feature values
-        self.hues = self.random_hues(self.n)
-        self.tilts = self.random_tilts(self.n)
-        self.widths = self.random_widths(self.n)
-        self.lengths = self.random_lengths(self.n)
+        self.hue_idx = self.random_idx(self.p_hue, self.n)
+        self.tilt_idx = self.random_idx(self.p_tilt, self.n)
+        self.width_idx = self.random_idx(self.p_width, self.n)
+        self.length_idx = self.random_idx(self.p_length, self.n)
 
         # Initialize the object to track which sticks are being shown
         self.on = np.ones(self.n, bool)
         self.off_frames = np.zeros(self.n)
 
+        self._on_log = []
         for _ in xrange(self.p.twinkle_burnin):
             self.update()
 
@@ -203,37 +207,40 @@ class StickArray(object):
 
         # Find feature values for the new sticks
         n_on = turning_on.sum()
-        self.hues[turning_on] = self.random_hues(n_on)
-        self.tilts[turning_on] = self.random_tilts(n_on)
-        self.widths[turning_on] = self.random_widths(n_on)
-        self.lengths[turning_on] = self.random_lengths(n_on)
+        self.hue_idx[turning_on] = self.random_idx(self.p_hue, n_on)
+        self.tilt_idx[turning_on] = self.random_idx(self.p_tilt, n_on)
+        self.width_idx[turning_on] = self.random_idx(self.p_width, n_on)
+        self.length_idx[turning_on] = self.random_idx(self.p_length, n_on)
 
         # Log the values
         self._on_log.append(self.on.copy())
 
-    def random_hues(self, n):
+    def random_idx(self, p, n):
 
-        idx = self.random.choice([0, 1], n, p=self.p_hues)
-        return self.rgb_colors[idx]
+        return self.random.binomial(1, p, n)
 
-    def random_tilts(self, n):
+    @property
+    def hue_vals(self):
+        return np.take(self.rgb_colors, self.hue_idx, axis=0)
 
-        return self.random.choice(self.p.tilts, n, p=self.p_tilts)
+    @property
+    def tilt_vals(self):
+        return np.take(self.p.tilts, self.tilt_idx)
 
-    def random_widths(self, n):
+    @property
+    def width_vals(self):
+        return np.take(self.p.widths, self.width_idx)
 
-        return self.random.choice(self.p.widths, n, p=self.p_widths)
-
-    def random_lengths(self, n):
-
-        return self.random.choice(self.p.lengths, n, p=self.p_widths)
+    @property
+    def length_vals(self):
+        return np.take(self.p.lengths, self.length_idx)
 
     def draw(self):
 
         # Update the psychopy object
-        self.sticks.setColors(self.hues)
-        self.sticks.setOris(self.tilts)
-        self.sticks.setSizes(np.c_[self.widths, self.lengths])
+        self.sticks.setColors(self.hue_vals)
+        self.sticks.setOris(self.tilt_vals)
+        self.sticks.setSizes(np.c_[self.width_vals, self.length_vals])
         self.sticks.setOpacities(self.on)
 
         if self.p.debug:
