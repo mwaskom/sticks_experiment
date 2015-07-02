@@ -29,7 +29,7 @@ base = dict(
     hues=(60, 140),
     tilts=(45, -45),
     widths=(.15, .075),
-    lengths=(.5, .25),
+    lengths=(.4, .2),
 
     # Feature names
     hue_features=("red", "green"),
@@ -44,7 +44,7 @@ base = dict(
     # Stick array parameters
     array_radius=4,
     array_offset=0,
-    disk_radius=.55,
+    disk_radius=.45,
     disk_candidates=20,
 
     # Twinkle parameters

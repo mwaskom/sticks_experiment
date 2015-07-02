@@ -224,7 +224,10 @@ class StickArray(object):
 
     def random_idx(self, p, n):
 
-        return self.random.binomial(1, p, n)
+        n_pos = np.round(p * n)
+        n_neg = n - n_pos
+        idx = np.r_[np.ones(n_pos, int), np.zeros(n_neg, int)]
+        return self.random.permutation(idx)
 
     @property
     def hue_vals(self):
