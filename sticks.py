@@ -43,13 +43,73 @@ def main(arglist):
     # The main stimulus arrays
     array = StickArray(win, p)
 
+    # Text that cues the context for each block
+    cue = visual.TextStim(win, text="", color="white",
+                          pos=(0, 0), height=.75)
+
+    # Text that indicates correct or incorrect responses
+    feedback = visual.TextStim(win, text="", font="Arial",
+                               color=p.fix_stim_color,
+                               pos=(0, 0), height=1)
+
     stims = dict(
 
         fix=fix,
         array=array,
+        cue=cue,
+        feedback=feedback,
 
     )
 
+
+class EventEngine(object):
+
+    def __init__(self, win, p, stims):
+
+        self.win = win
+        self.p = p
+
+        self.fix = stims["fix"]
+        self.array = stims["array"]
+        #self.feedback = stims["feedback"]
+
+        self.break_keys = p.resp_keys + p.quit_keys
+        self.resp_keys = p.resp_keys
+        self.quit_keys = p.quit_keys
+
+        self.stim_frames = int(p.stim_dur * win.refresh_hz)
+
+        self.resp_clock = core.Clock()
+
+    def __call__(self, correct):
+
+        self.array.reset()
+
+        draw_stim = True
+
+        keys = []
+        event.clearEvents()
+        self.resp_clock.reset()
+
+        self.win.nDroppedFrames = 0
+
+        for _ in xrange(self.stim_frames):
+
+            if not keys:
+                keys = event.getKeys(self.break_keys,
+                                     timeStamped=self.resp_clock)
+                draw_stim = not bool(keys)
+
+            if draw_stim:
+                self.array.update()
+                self.array.draw()
+
+            self.fix.draw()
+            self.win.flip()
+
+
+# =========================================================================== #
+# =========================================================================== #
 
 class StickArray(object):
     """Array of "sticks" that vary on four dimensions."""
@@ -168,6 +228,13 @@ class StickArray(object):
         x, y = rho * np.cos(phi), rho * np.sin(phi)
         self.sticks.setXYs(np.c_[x, y])
 
+    def set_feature_probs(self, p_hue, p_tilt, p_width, p_length):
+        """Add attributes for the probability of features on each dimension."""
+        self.p_hue = p_hue
+        self.p_tilt = p_tilt
+        self.p_width = p_width
+        self.p_length = p_length
+
     def reset(self):
         """Prepare the stimulus for a new trial."""
         # Randomize the stick positions
@@ -191,7 +258,7 @@ class StickArray(object):
         self.log.new_trial()
 
     def update(self, log=True):
-
+        """Prepare the stimulus for a new frame."""
         # Determine which sticks are turning off
         turning_off = (self.random.uniform(size=self.n) <
                        self.p.twinkle_off_prob)
@@ -223,7 +290,7 @@ class StickArray(object):
                                self.length_idx)
 
     def random_idx(self, p, n):
-
+        """Get indices for feature values with given proportion."""
         n_pos = np.round(p * n)
         n_neg = n - n_pos
         idx = np.r_[np.ones(n_pos, int), np.zeros(n_neg, int)]
