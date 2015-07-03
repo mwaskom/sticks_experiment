@@ -24,6 +24,11 @@ base = dict(
     wait_keys=["space"],
     finish_keys=["return"],
     trigger_keys=["5", "t"],
+    resp_keys=["comma", "period"],
+
+    # Feedback settings
+    feedback_glyphs=("X", "+"),
+    feedback_colors=("black", "white"),
 
     # Stick parameters
     hues=(60, 140),
@@ -52,6 +57,11 @@ base = dict(
     twinkle_on_prob=.5,
     twinkle_timeout=9,
     twinkle_burnin=20,
+
+    # Timing
+    stim_dur=1.5,
+    feedback_dur=.5,
+    cue_dur=.5,
 
 )
 

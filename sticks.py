@@ -61,6 +61,27 @@ def main(arglist):
 
     )
 
+    # Execute the experiment function
+    globals()[mode](p, win, stims)
+
+
+def prototype(p, win, stims):
+
+    stim_event = EventEngine(win, p, stims)
+
+    with cregg.PresentationLoop(win, p):
+
+        while True:
+
+            ps = [.3, .4, .45, .55, .6, .7]
+            trial_ps = np.random.choice(ps, 4)
+            stims["array"].set_feature_probs(*trial_ps)
+
+            stim_event(np.random.choice([0, 1]))
+            cregg.wait_check_quit(p.feedback_dur)
+
+
+
 
 class EventEngine(object):
 
@@ -71,7 +92,7 @@ class EventEngine(object):
 
         self.fix = stims["fix"]
         self.array = stims["array"]
-        #self.feedback = stims["feedback"]
+        self.feedback = stims["feedback"]
 
         self.break_keys = p.resp_keys + p.quit_keys
         self.resp_keys = p.resp_keys
@@ -81,7 +102,9 @@ class EventEngine(object):
 
         self.resp_clock = core.Clock()
 
-    def __call__(self, correct):
+        self.draw_feedback = True
+
+    def __call__(self, correct_response):
 
         self.array.reset()
 
@@ -90,6 +113,7 @@ class EventEngine(object):
         keys = []
         event.clearEvents()
         self.resp_clock.reset()
+        correct = False
 
         self.win.nDroppedFrames = 0
 
@@ -107,6 +131,29 @@ class EventEngine(object):
             self.fix.draw()
             self.win.flip()
 
+        for key, key_time in keys:
+
+            if key in self.quit_keys:
+                core.quit()
+
+            if key in self.resp_keys:
+                used_key = key
+                response = self.resp_keys.index(key)
+                correct = response == correct_response
+                rt = key_time
+
+        self.show_feedback(correct)
+
+    def show_feedback(self, correct):
+        """Display visual feedback."""
+        if self.draw_feedback:
+            self.feedback.setText(self.p.feedback_glyphs[correct])
+            self.feedback.setColor(self.p.feedback_colors[correct])
+            self.feedback.draw()
+            self.win.flip()
+        else:
+            self.fix.draw()
+            self.win.flip()
 
 # =========================================================================== #
 # =========================================================================== #
@@ -415,3 +462,7 @@ class StickLog(object):
             data[attr + "_prop"] = getattr(self, attr + "_prop")
 
         np.savez(fname, **data)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
