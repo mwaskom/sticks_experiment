@@ -36,6 +36,9 @@ base = dict(
     widths=(.15, .075),
     lengths=(.4, .2),
 
+    # Dimension info
+    dim_names=["hue", "tilt", "width", "length"],
+
     # Feature names
     hue_features=("red", "green"),
     tilt_features=("right", "left"),

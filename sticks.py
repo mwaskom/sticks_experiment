@@ -48,9 +48,7 @@ def main(arglist):
                           pos=(0, 0), height=.75)
 
     # Text that indicates correct or incorrect responses
-    feedback = visual.TextStim(win, text="", font="Arial",
-                               color=p.fix_stim_color,
-                               pos=(0, 0), height=1)
+    feedback = Feedback(win)
 
     stims = dict(
 
@@ -73,14 +71,32 @@ def prototype(p, win, stims):
 
         while True:
 
-            ps = [.3, .4, .45, .55, .6, .7]
-            trial_ps = np.random.choice(ps, 4)
-            stims["array"].set_feature_probs(*trial_ps)
+            dim = np.random.choice(p.dim_names)
+            dim_idx = p.dim_names.index(dim)
 
-            stim_event(np.random.choice([0, 1]))
-            cregg.wait_check_quit(p.feedback_dur)
+            stims["cue"].setText(dim)
+            stims["cue"].draw()
+            win.flip()
+            cregg.wait_check_quit(p.cue_dur)
+
+            for trial in range(4):
+
+                ps = [.3, .4, .45, .55, .6, .7]
+                ps = [.1, .9]
+                trial_ps = np.random.choice(ps, 4)
+                stims["array"].set_feature_probs(*trial_ps)
+                correct_resp = trial_ps[dim_idx] > .5
+
+                stim_event(correct_resp)
+                cregg.wait_check_quit(p.feedback_dur)
+
+            stims["fix"].draw()
+            win.flip()
+            cregg.wait_check_quit(2)
 
 
+# =========================================================================== #
+# =========================================================================== #
 
 
 class EventEngine(object):
@@ -100,6 +116,7 @@ class EventEngine(object):
 
         self.stim_frames = int(p.stim_dur * win.refresh_hz)
 
+        self.clock = core.Clock()
         self.resp_clock = core.Clock()
 
         self.draw_feedback = True
@@ -113,6 +130,7 @@ class EventEngine(object):
         keys = []
         event.clearEvents()
         self.resp_clock.reset()
+        self.clock.reset()
         correct = False
 
         self.win.nDroppedFrames = 0
@@ -131,6 +149,8 @@ class EventEngine(object):
             self.fix.draw()
             self.win.flip()
 
+        dropped = self.win.nDroppedFrames
+
         for key, key_time in keys:
 
             if key in self.quit_keys:
@@ -142,21 +162,32 @@ class EventEngine(object):
                 correct = response == correct_response
                 rt = key_time
 
-        self.show_feedback(correct)
+        self.feedback.update(correct)
+        self.feedback.draw()
+        self.win.flip()
 
-    def show_feedback(self, correct):
-        """Display visual feedback."""
-        if self.draw_feedback:
-            self.feedback.setText(self.p.feedback_glyphs[correct])
-            self.feedback.setColor(self.p.feedback_colors[correct])
-            self.feedback.draw()
-            self.win.flip()
-        else:
-            self.fix.draw()
-            self.win.flip()
 
 # =========================================================================== #
 # =========================================================================== #
+
+
+class Feedback(object):
+
+    def __init__(self, win):
+
+        vertices = [(0, 0), (0, 1), (0, 0), (1, 0),
+                    (0, 0), (0, -1), (0, 0), (-1, 0), (0, 0)]
+        self.shape = visual.ShapeStim(win, vertices=vertices, lineWidth=10)
+
+    def update(self, correct):
+
+        self.shape.setOri([45, 0][correct])
+        self.shape.setLineColor(["black", "white"][correct])
+
+    def draw(self):
+
+        self.shape.draw()
+
 
 class StickArray(object):
     """Array of "sticks" that vary on four dimensions."""
@@ -197,7 +228,8 @@ class StickArray(object):
                                          xys=initial_xys,
                                          nElements=n_sticks,
                                          elementTex=None,
-                                         elementMask="sqr")
+                                         elementMask="sqr",
+                                         autoLog=False)
 
         self.sticks = sticks
         self.n = n_sticks
