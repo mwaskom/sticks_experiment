@@ -3,7 +3,6 @@ import sys
 import json
 import itertools
 from copy import copy
-from textwrap import dedent
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -59,6 +58,27 @@ def main(arglist):
 
     )
 
+    # Instructions
+    if hasattr(p, "instruct_text"):
+        instruct = cregg.WaitText(win, p.instruct_text,
+                                  advance_keys=p.wait_keys,
+                                  quit_keys=p.quit_keys)
+        stims["instruct"] = instruct
+
+    # Text that allows subjects to take a break between blocks
+    if hasattr(p, "break_text"):
+        take_break = cregg.WaitText(win, p.break_text,
+                                    advance_keys=p.wait_keys,
+                                    quit_keys=p.quit_keys)
+        stims["break"] = take_break
+
+    # Text that alerts subjects to the end of an experimental run
+    if hasattr(p, "finish_text"):
+        finish_run = cregg.WaitText(win, p.finish_text,
+                                    advance_keys=p.finish_keys,
+                                    quit_keys=p.quit_keys)
+        stims["finish"] = finish_run
+
     # Execute the experiment function
     globals()[mode](p, win, stims)
 
@@ -68,6 +88,8 @@ def prototype(p, win, stims):
     stim_event = EventEngine(win, p, stims)
 
     with cregg.PresentationLoop(win, p):
+
+        stims["break"].draw()
 
         while True:
 
@@ -82,7 +104,6 @@ def prototype(p, win, stims):
             for trial in range(4):
 
                 ps = [.3, .4, .45, .55, .6, .7]
-                ps = [.1, .9]
                 trial_ps = np.random.choice(ps, 4)
                 stims["array"].set_feature_probs(*trial_ps)
                 correct_resp = trial_ps[dim_idx] > .5
@@ -93,6 +114,60 @@ def prototype(p, win, stims):
             stims["fix"].draw()
             win.flip()
             cregg.wait_check_quit(2)
+
+
+def psychophys(p, win, stims):
+
+    stim_event = EventEngine(win, p, stims)
+
+    design = psychophys_design(p)
+
+    stims["instruct"].draw()
+
+    # Initialize the data log object
+    log_cols = list(design.columns)
+    log_cols += ["correct", "rt", "response", "key", "dropped_frames"]
+    log = cregg.DataLog(p, log_cols)
+
+    with cregg.PresentationLoop(win, p):
+
+        for t, t_info in design.iterrows():
+
+            take_break = (t and
+                          not t_info["block_trial"] and
+                          not t_info["block"] % p.blocks_per_break)
+
+            if take_break:
+                # Take a break in between blocks
+                stims["break"].draw()
+                stims["fix"].draw()
+                win.flip()
+                cregg.wait_check_quit(p.ibi_dur)
+
+            if not t_info["block_trial"]:
+
+                if t:
+                    stims["fix"].draw()
+                    win.flip()
+                    cregg.wait_check_quit(p.ibi_dur)
+
+                # Show the cue for this block
+                stims["cue"].setText(t_info["context"])
+                stims["cue"].draw()
+                win.flip()
+                cregg.wait_check_quit(p.cue_dur)
+
+            stims["array"].reset()
+            ps = [t_info[dim + "_p"] for dim in p.dim_names]
+            stims["array"].set_feature_probs(*ps)
+            correct_resp = t_info[t_info["context"] + "_p"] > .5
+
+            res = stim_event(correct_resp)
+
+            t_info = t_info.append(pd.Series(res))
+
+            log.add_data(t_info)
+            cregg.wait_check_quit(p.feedback_dur)
 
 
 # =========================================================================== #
@@ -131,7 +206,11 @@ class EventEngine(object):
         event.clearEvents()
         self.resp_clock.reset()
         self.clock.reset()
+
         correct = False
+        used_key = np.nan
+        response = np.nan
+        rt = np.nan
 
         self.win.nDroppedFrames = 0
 
@@ -166,6 +245,10 @@ class EventEngine(object):
         self.feedback.draw()
         self.win.flip()
 
+        return dict(correct=correct, key=used_key, rt=rt,
+                    response=response,
+                    dropped_frames=dropped)
+
 
 # =========================================================================== #
 # =========================================================================== #
@@ -175,18 +258,22 @@ class Feedback(object):
 
     def __init__(self, win):
 
-        vertices = [(0, 0), (0, 1), (0, 0), (1, 0),
-                    (0, 0), (0, -1), (0, 0), (-1, 0), (0, 0)]
-        self.shape = visual.ShapeStim(win, vertices=vertices, lineWidth=10)
+        verts = [(-1, 0), (1, 0)], [(0, -1), (0, 1)]
+        self.shapes = [visual.ShapeStim(win, vertices=v, lineWidth=10)
+                       for v in verts]
 
     def update(self, correct):
 
-        self.shape.setOri([45, 0][correct])
-        self.shape.setLineColor(["black", "white"][correct])
+        ori = [45, 0][correct]
+        color = ["black", "white"][correct]
+        for shape in self.shapes:
+            shape.setOri(ori)
+            shape.setLineColor(color)
 
     def draw(self):
 
-        self.shape.draw()
+        for shape in self.shapes:
+            shape.draw()
 
 
 class StickArray(object):
@@ -409,6 +496,9 @@ class StickLog(object):
 
     The log for each attribute is an array with shape (trial, frame, object).
 
+    Also offers properties that compute the proportion of each feature on
+    each trial across the display and trial frames.
+
     """
     def __init__(self):
 
@@ -495,6 +585,41 @@ class StickLog(object):
 
         np.savez(fname, **data)
 
+
+# =========================================================================== #
+# =========================================================================== #
+
+
+def psychophys_design(p, rs=None):
+
+    if rs is None:
+        rs = np.random.RandomState()
+
+    cols = ["context", "block", "block_trial",
+            "hue_p", "tilt_p", "width_p", "length_p",
+            "context_p"]
+
+    design = []
+    for cycle in xrange(p.cycles):
+        dimensions = rs.permutation(p.dim_names)
+        for block, block_dim in enumerate(dimensions):
+            block_trials = np.arange(p.trials_per_block)
+            block_design = pd.DataFrame(columns=cols,
+                                        index=block_trials)
+
+            block_design["context"] = block_dim
+            block_design["block"] = cycle * 4 + block
+            for trial in block_trials:
+                block_design.loc[trial, "block_trial"] = trial
+                for dim in p.dim_names:
+                    dim_p = rs.choice(p.coherences)
+                    block_design.loc[trial, dim + "_p"] = dim_p
+                    if dim == block_dim:
+                        block_design.loc[trial, "context_p"] = dim_p
+            design.append(block_design)
+
+    design = pd.concat(design).reset_index(drop=True)
+    return design
 
 if __name__ == "__main__":
     main(sys.argv[1:])

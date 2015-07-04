@@ -66,6 +66,40 @@ base = dict(
     feedback_dur=.5,
     cue_dur=.5,
 
+    # Communication
+    break_text=(
+        "Take a quick break, if you'd like!",
+        "",
+        "Press space to start the next block",
+    ),
+
+    finish_text=(
+        "Run Finished!",
+        ""
+        "Please tell the experimenter",
+    )
+
 )
 
 prototype = deepcopy(base)
+
+psychophys = deepcopy(base)
+psychophys.update(dict(
+
+    log_base="data/{subject}_psychophys",
+
+    ibi_dur=4,
+
+    cycles=10,
+    trials_per_block=8,
+    blocks_per_break=5,
+    coherences=(.15, .25, .35, .45, .55, .65, .75, .85),
+
+    instruct_text=(
+        "Use the < and > keys to respond",
+        "as soon as you make your decision",
+        "Press space to begin",
+    )
+
+
+))
