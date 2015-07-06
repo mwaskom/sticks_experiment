@@ -240,7 +240,7 @@ def learn(p, win, stims):
           decision you are making.
           """)
 
-    slide(""""
+    slide("""
           To respond, you'll be using the < and > keys on the keyboard.
 
           The meaning of these keys changes with the rule. So the < key might
@@ -293,8 +293,10 @@ def learn(p, win, stims):
                 "correct", "rt", "response", "key"]
     log = cregg.DataLog(p, log_cols)
 
-    # Execute the experiment
+    # Randomize the order of contexts that appear in each cycle
     block_order = rs.permutation(p.dim_names)
+
+    # Execute the experiment
     with cregg.PresentationLoop(win, p):
 
         show_guide = True
