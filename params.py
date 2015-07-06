@@ -87,7 +87,7 @@ learn.update(dict(
 
     log_base="data/{subject}_learn",
     ibi_dur=1.5,
-    coherence=.9,
+    coherence=.8,
     trials_per_block=4,
     criterion=3,  # blocks at criterion to move on
 
