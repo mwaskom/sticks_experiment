@@ -160,6 +160,7 @@ def learn(p, win, stims):
 
     # Set up the data log
     log_cols = ["cycle", "block", "block_trial", "context", "guide",
+                "hue_val", "tilt_val", "width_val", "length_val",
                 "correct", "rt", "response", "key"]
     log = cregg.DataLog(p, log_cols)
 
@@ -170,8 +171,11 @@ def learn(p, win, stims):
         need_practice = True
         good_blocks = {dim: 0 for dim in p.dim_names}
 
-        cycle = 0
+        cycle = -1
         while need_practice:
+
+            # Update the cycle counter
+            cycle += 1
 
             for cycle_block, block_dim in enumerate(p.dim_names):
 
@@ -187,21 +191,38 @@ def learn(p, win, stims):
                 # Track the accuracy on each trial
                 block_acc = []
 
+                # Balance the features we see in the block
+                features = [rs.permutation([True, True, False, False])
+                            for _ in range(4)]
+                features = np.array(features).T
+
                 for block_trial in xrange(p.trials_per_block):
 
+                    # Determine the features for each dimension
+                    trial_features = features[block_trial]
+
+                    # Log the trial info
                     block = (cycle * 4) + cycle_block
                     t_info = dict(cycle=cycle, block=block,
                                   block_trial=block_trial,
-                                  context=block_dim, guides=show_guide)
+                                  context=block_dim, guide=show_guide)
 
                     # Set the stimulus coherences
                     coh = p.coherence
                     trial_coherences = []
-                    for dim in p.dim_names:
-                        dim_coh = coh if rs.binomial(1, .5) else 1 - coh
+                    for dim, feature in zip(p.dim_names, trial_features):
+
+                        # Log the trial feature
+                        names = getattr(p, dim + "_features")
+                        t_info[dim + "_val"] = names[int(feature)]
+
+                        # Determine the stick coherence on this dimension
+                        dim_coh = coh if feature else 1 - coh
                         if dim == block_dim:
                             rel_coh = dim_coh
                         trial_coherences.append(dim_coh)
+
+                    # Configure the stimulus array
                     stims["array"].set_feature_probs(*trial_coherences)
 
                     # Execute the trial
