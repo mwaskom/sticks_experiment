@@ -3,6 +3,7 @@ import sys
 import json
 import itertools
 from copy import copy
+from textwrap import dedent
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -147,8 +148,136 @@ def learn(p, win, stims):
     # Initialize the trial controller
     stim_event = EventEngine(win, p, stims)
 
-    # Show the instructions
-    stims["instruct"].draw()
+    main_text = visual.TextStim(win, height=.5)
+    next_text = visual.TextStim(win, "(press space to continue)",
+                                height=.4,
+                                pos=(0, -5))
+
+    def slide(message, with_next_text=True):
+
+        main_text.setText(dedent(message))
+        main_text.draw()
+        if with_next_text:
+            next_text.draw()
+        win.flip()
+        cregg.wait_and_listen("space", .25)
+
+    slide("""
+          Welcome to the experiment - thank you for participating!
+          """)
+
+    slide("""
+          In the experiment today, you're going to be looking at simple
+          patterns and making decisions about what you see in them.
+
+          Hit space to see the kind of pattern you'll be looking at.
+          """, False)
+
+    stims["fix"].draw()
+    win.flip()
+    cregg.wait_check_quit(1)
+    stims["array"].set_feature_probs(.7, .7, .7, .7)
+    stim_event(correct_response=1, feedback=False)
+
+    slide("""
+          This pattern is made up of small sticks that can change in
+          four different ways on each trial.
+          """)
+
+    slide("""
+          Here are the different features each stick can have:
+
+          - hue: red or green
+          - tilt: left or right
+          - width: thick or thin
+          - length: long or short
+          """)
+
+    slide("""
+          The patterns will be a mix of these, and for each dimension
+          (i.e. hue, tilt, width, and length), there will always be more
+          sticks with one of the two features.
+
+          On each trial, you'll only have to pay attention to one of these
+          dimensions (we will tell you which one).
+
+          Your job will be to decide whether there are more sticks with one
+          feature or the other feature on that dimension. In other words, if
+          the rule is "hue", you have to decide whether there are more red
+          or more green sticks.
+          """)
+
+    slide("""
+          Try it for yourself. Hit space to see the pattern again and try
+          to make a "hue" decision.
+          """)
+
+    stims["fix"].draw()
+    win.flip()
+    cregg.wait_check_quit(1)
+    stims["array"].set_feature_probs(.7, .7, .7, .7)
+    stim_event(correct_response=1, feedback=False)
+
+    slide("""
+          If you said "red", that's correct!
+
+          You'll get plenty of practice to learn how to make these decisions
+          before we start the main experiment.
+
+          Before we start the practice, there are some important things you
+          need to know about.
+          """)
+
+    slide("""
+          The way the experiment works is that there will be blocks of trials
+          where you need to make decisions using the same rule.
+
+          Each block will start with a word (e.g., "tilt") and then you will
+          see several different patterns that you have to make "tilt"
+          decisions about.
+
+          Every time you see a new cue, you'll need to change what kind of
+          decision you are making.
+          """)
+
+    slide(""""
+          To respond, you'll be using the < and > keys on the keyboard.
+
+          The meaning of these keys changes with the rule. So the < key might
+          mean "short" in a "length" block but "thick" in a "width" block.
+
+          At the start of the practice, there will be labels on the screen to
+          help you learn which button to press for each decision, but these
+          won't be present during the main experiment so you will need to learn
+          what each button means.
+          """)
+
+    slide("""
+          You'll get feedback on your responses to let you know if you were
+          right or wrong.
+
+          A white "+" will mean you were right, and a black "x" will mean
+          you were wrong.
+
+          You'll have a limited time to respond on each trial, and if you
+          don't get a response in, it will be counted as wrong.
+          """)
+
+    slide("""
+          That was a lot of information!
+
+          Please tell the experiment if you have any questions.
+
+          Press space once you are ready to start the practice session.
+
+          Remember, you're using the < and > keys to respond.
+          """, False)
+
+    stims["fix"].draw()
+    win.flip()
+    cregg.wait_check_quit(2)
+
+    # -----------------------------------------------------------------------
 
     # Set up a randomizer for the coherences
     rs = np.random.RandomState()
@@ -165,6 +294,7 @@ def learn(p, win, stims):
     log = cregg.DataLog(p, log_cols)
 
     # Execute the experiment
+    block_order = rs.permutation(p.dim_names)
     with cregg.PresentationLoop(win, p):
 
         show_guide = True
@@ -177,7 +307,7 @@ def learn(p, win, stims):
             # Update the cycle counter
             cycle += 1
 
-            for cycle_block, block_dim in enumerate(p.dim_names):
+            for cycle_block, block_dim in enumerate(block_order):
 
                 # Show the cue
                 stims["cue"].setText(block_dim)
@@ -352,7 +482,7 @@ class EventEngine(object):
 
         self.draw_feedback = True
 
-    def __call__(self, correct_response, guide=False):
+    def __call__(self, correct_response, feedback=True, guide=False):
         """Execute a stimulus event."""
         self.array.reset()
 
@@ -410,8 +540,9 @@ class EventEngine(object):
                 rt = key_time
 
         # Show the feedback
-        self.feedback.update(correct)
-        self.feedback.draw()
+        if feedback:
+            self.feedback.update(correct)
+            self.feedback.draw()
         self.win.flip()
 
         return dict(correct=correct, key=used_key, rt=rt,

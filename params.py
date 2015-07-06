@@ -100,8 +100,7 @@ learn.update(dict(
     ),
 
     post_guide_instruct_text=(
-        "Now you have to remember which button",
-        "to press for each response",
+        "Now you have to remember which button to press for each response",
         "",
         "Hit space to continue",
     )
