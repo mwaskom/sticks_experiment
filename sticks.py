@@ -26,8 +26,8 @@ def main(arglist):
     p = cregg.Params(mode)
     p.set_by_cmdline(arglist)
 
-    # Get a random state that is seeded by the subject ID
-    state = cregg.subject_specific_state(p.subject, p.cbid)
+    # Randomize the response mappings consistently by subject
+    counterbalance_feature_response_mapping(p)
 
     # Open up the stimulus window
     win = cregg.launch_window(p)
@@ -83,6 +83,30 @@ def main(arglist):
     globals()[mode](p, win, stims)
 
 
+def counterbalance_feature_response_mapping(p):
+    """Randomize the feature/response mappings by the subject ID."""
+    # Note that tilt features always map left-left and right-right
+    rs = cregg.subject_specific_state(p.subject, p.cbid)
+    flip_hue, flip_width, flip_length = rs.binomial(1, .5, 3)
+
+    # Counterbalance the hue features
+    if flip_hue:
+        p.hues = p.hues[1], p.hues[0]
+        p.hue_features = p.hue_features[1], p.hue_features[0]
+
+    # Counterbalance the width features
+    if flip_width:
+        p.widths = p.widths[1], p.widths[0]
+        p.width_features = p.width_features[1], p.width_features[0]
+
+    # Counterbalance the length features
+    if flip_length:
+        p.lengths = p.lengths[1], p.lengths[0]
+        p.length_features = p.length_features[1], p.length_features[0]
+
+    return p
+
+
 def prototype(p, win, stims):
 
     stim_event = EventEngine(win, p, stims)
@@ -117,35 +141,40 @@ def prototype(p, win, stims):
 
 
 def psychophys(p, win, stims):
-
+    """Method of constants psychophysics experiment."""
+    # Initialize the trial controller
     stim_event = EventEngine(win, p, stims)
 
+    # Create a design for this run
     design = psychophys_design(p)
 
+    # Show the instructions
     stims["instruct"].draw()
 
     # Initialize the data log object
     log_cols = list(design.columns)
     log_cols += ["correct", "rt", "response", "key", "dropped_frames"]
     log = cregg.DataLog(p, log_cols)
+    log.stick_log = stims["array"].log
 
-    with cregg.PresentationLoop(win, p):
+    # Execute the experiment
+    with cregg.PresentationLoop(win, p, log=log, exit_func=psychophys_exit):
 
         for t, t_info in design.iterrows():
 
+            # Have a subject-controlled break between some blocks
             take_break = (t and
                           not t_info["block_trial"] and
                           not t_info["block"] % p.blocks_per_break)
 
             if take_break:
-                # Take a break in between blocks
                 stims["break"].draw()
                 stims["fix"].draw()
                 win.flip()
-                cregg.wait_check_quit(p.ibi_dur)
 
             if not t_info["block_trial"]:
 
+                # Short timed break between blocks
                 if t:
                     stims["fix"].draw()
                     win.flip()
@@ -157,17 +186,27 @@ def psychophys(p, win, stims):
                 win.flip()
                 cregg.wait_check_quit(p.cue_dur)
 
-            stims["array"].reset()
+            # Determine the feature proportions for this trial
             ps = [t_info[dim + "_p"] for dim in p.dim_names]
             stims["array"].set_feature_probs(*ps)
+
+            # Determine the correct response for this trial
             correct_resp = t_info[t_info["context"] + "_p"] > .5
 
+            # Execute the trial
             res = stim_event(correct_resp)
 
+            # Record the trial result and wait for the next trial
             t_info = t_info.append(pd.Series(res))
-
             log.add_data(t_info)
             cregg.wait_check_quit(p.feedback_dur)
+
+
+def psychophys_exit(log):
+    """Save the stick stimulus log."""
+    stick_log_fname = log.p.stick_log_base.format(subject=log.p.subject,
+                                                  run=log.p.run)
+    log.stick_log.save(stick_log_fname)
 
 
 # =========================================================================== #
@@ -175,7 +214,7 @@ def psychophys(p, win, stims):
 
 
 class EventEngine(object):
-
+    """Controller object for trial events."""
     def __init__(self, win, p, stims):
 
         self.win = win
@@ -197,39 +236,49 @@ class EventEngine(object):
         self.draw_feedback = True
 
     def __call__(self, correct_response):
-
+        """Execute a stimulus event."""
         self.array.reset()
 
+        # This will turn to False after a response is recorded
         draw_stim = True
 
+        # Prepare to catch keypresses and record RTs
         keys = []
         event.clearEvents()
         self.resp_clock.reset()
         self.clock.reset()
 
+        # Initialize the output variables
         correct = False
         used_key = np.nan
         response = np.nan
         rt = np.nan
 
+        # Reset the window droped frames counter
         self.win.nDroppedFrames = 0
 
+        # Precisely control the stimulus duration
         for _ in xrange(self.stim_frames):
 
+            # Look for valid keys and stop drawing if we find them
             if not keys:
                 keys = event.getKeys(self.break_keys,
                                      timeStamped=self.resp_clock)
                 draw_stim = not bool(keys)
 
+            # Show a new frame of the stimulus
             if draw_stim:
                 self.array.update()
                 self.array.draw()
 
+            # Flip the window and block until a screen refresh
             self.fix.draw()
             self.win.flip()
 
-        dropped = self.win.nDroppedFrames
+        # Count the dropped frames
+        dropped = self.win.nDroppedFrames - 1
 
+        # Go through the list of recorded keys and determine the response
         for key, key_time in keys:
 
             if key in self.quit_keys:
@@ -241,6 +290,7 @@ class EventEngine(object):
                 correct = response == correct_response
                 rt = key_time
 
+        # Show the feedback
         self.feedback.update(correct)
         self.feedback.draw()
         self.win.flip()
@@ -562,19 +612,23 @@ class StickLog(object):
 
     @property
     def hue_prop(self):
-        return np.array([np.concatenate(t).mean() for t in self._hue_on])
+        hue_prop = [np.concatenate(t).mean() for t in self._hue_on if t]
+        return np.array(hue_prop)
 
     @property
     def tilt_prop(self):
-        return np.array([np.concatenate(t).mean() for t in self._tilt_on])
+        tilt_prop = [np.concatenate(t).mean() for t in self._tilt_on if t]
+        return np.array(tilt_prop)
 
     @property
     def width_prop(self):
-        return np.array([np.concatenate(t).mean() for t in self._width_on])
+        width_prop = [np.concatenate(t).mean() for t in self._width_on if t]
+        return np.array(width_prop)
 
     @property
     def length_prop(self):
-        return np.array([np.concatenate(t).mean() for t in self._length_on])
+        length_prop = [np.concatenate(t).mean() for t in self._length_on if t]
+        return np.array(length_prop)
 
     def save(self, fname):
 
@@ -584,6 +638,27 @@ class StickLog(object):
             data[attr + "_prop"] = getattr(self, attr + "_prop")
 
         np.savez(fname, **data)
+
+
+class LearningGuide(object):
+    """Text with the feature-response mappings to show during training."""
+    def __init__(self, win, p):
+
+        offset = p.array_radius + .3
+        self.texts = [visual.TextStim(win, pos=(-offset, 0),
+                                      height=.5, alignHoriz="right"),
+                      visual.TextStim(win, pos=(offset, 0),
+                                      height=.5, alignHoriz="left")]
+
+    def update(self, features):
+
+        for feature, text in zip(features, self.texts):
+            text.setText(feature)
+
+    def draw(self):
+
+        for text in self.texts:
+            text.draw()
 
 
 # =========================================================================== #
