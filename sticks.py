@@ -108,7 +108,7 @@ def counterbalance_feature_response_mapping(p):
 
 
 def prototype(p, win, stims):
-
+    """Simple prototype loop of the stimulus."""
     stim_event = EventEngine(win, p, stims)
 
     with cregg.PresentationLoop(win, p):
@@ -131,7 +131,6 @@ def prototype(p, win, stims):
                 trial_ps = np.random.choice(ps, 4)
                 stims["array"].set_feature_probs(*trial_ps)
                 correct_resp = trial_ps[dim_idx] > .5
-
                 stim_event(correct_resp)
                 cregg.wait_check_quit(p.feedback_dur)
 
@@ -189,6 +188,8 @@ def psychophys(p, win, stims):
             # Determine the feature proportions for this trial
             ps = [t_info[dim + "_p"] for dim in p.dim_names]
             stims["array"].set_feature_probs(*ps)
+
+            # Determing the feature values for this trial
 
             # Determine the correct response for this trial
             correct_resp = t_info[t_info["context"] + "_p"] > .5
@@ -305,7 +306,7 @@ class EventEngine(object):
 
 
 class Feedback(object):
-
+    """Simple glyph-based object to report correct or error."""
     def __init__(self, win):
 
         verts = [(-1, 0), (1, 0)], [(0, -1), (0, 1)]
@@ -672,27 +673,53 @@ def psychophys_design(p, rs=None):
 
     cols = ["context", "block", "block_trial",
             "hue_p", "tilt_p", "width_p", "length_p",
+            "hue_val", "tilt_val", "width_val", "length_val",
             "context_p"]
 
     design = []
+    block_dim = None
     for cycle in xrange(p.cycles):
-        dimensions = rs.permutation(p.dim_names)
+
+        # Determine the order of rules for this block
+        good_block = False
+        while not good_block:
+            # Ensure that every cycle has a rule switch
+            dimensions = rs.permutation(p.dim_names)
+            if dimensions[0] != block_dim:
+                good_block = True
+
+        # Determine the trials for each block in the cycle
         for block, block_dim in enumerate(dimensions):
+
+            # Set up the design object for this block
             block_trials = np.arange(p.trials_per_block)
             block_design = pd.DataFrame(columns=cols,
                                         index=block_trials)
 
+            # Update with info we currently know
             block_design["context"] = block_dim
             block_design["block"] = cycle * 4 + block
+
+            # Add trialwise info
             for trial in block_trials:
                 block_design.loc[trial, "block_trial"] = trial
+
+                # Choose the coherence values for each dimension
                 for dim in p.dim_names:
+
                     dim_p = rs.choice(p.coherences)
                     block_design.loc[trial, dim + "_p"] = dim_p
+
+                    dim_val = getattr(p, dim + "_features")[dim_p > .5]
+                    block_design.loc[trial, dim + "_val"] = dim_val
+
+                    # Update the field with the relevant dimension
                     if dim == block_dim:
                         block_design.loc[trial, "context_p"] = dim_p
+
             design.append(block_design)
 
+    # Build the full design
     design = pd.concat(design).reset_index(drop=True)
     return design
 
