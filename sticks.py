@@ -288,7 +288,7 @@ def learn(p, win, stims):
                                          quit_keys=p.quit_keys)
 
     # Set up the data log
-    log_cols = ["cycle", "block", "context_block",
+    log_cols = ["cycle", "block",
                 "block_trial", "context", "guide",
                 "hue_val", "tilt_val", "width_val", "length_val",
                 "correct", "rt", "response", "key"]
@@ -372,9 +372,6 @@ def learn(p, win, stims):
                     log.add_data(t_info)
 
                     cregg.wait_check_quit(p.feedback_dur)
-
-                # Update the context block counter
-                context_block[block_dim] += 1
 
                 # Update the object tracking learning performance
                 good_block = np.mean(block_acc) > p.trial_criterion
