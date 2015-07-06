@@ -89,7 +89,9 @@ learn.update(dict(
     ibi_dur=1.5,
     coherence=.8,
     trials_per_block=4,
-    criterion=3,  # blocks at criterion to move on
+    blocks_per_break=5,
+    trial_criterion=.7,  # accuracy thresh to count as a "good" trial
+    block_criterion=3,  # blocks at criterion to move on
 
     post_guide_instruct_text=(
         "Now you have to remember which button to press for each response",

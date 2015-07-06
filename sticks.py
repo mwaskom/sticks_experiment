@@ -288,7 +288,8 @@ def learn(p, win, stims):
                                          quit_keys=p.quit_keys)
 
     # Set up the data log
-    log_cols = ["cycle", "block", "block_trial", "context", "guide",
+    log_cols = ["cycle", "block", "context_block",
+                "block_trial", "context", "guide",
                 "hue_val", "tilt_val", "width_val", "length_val",
                 "correct", "rt", "response", "key"]
     log = cregg.DataLog(p, log_cols)
@@ -296,20 +297,27 @@ def learn(p, win, stims):
     # Randomize the order of contexts that appear in each cycle
     block_order = rs.permutation(p.dim_names)
 
+    # Set up variables that will control the flow of the session
+    show_guide = True
+    need_practice = True
+    good_blocks = {dim: 0 for dim in p.dim_names}
+    cycle = -1
+
     # Execute the experiment
     with cregg.PresentationLoop(win, p):
-
-        show_guide = True
-        need_practice = True
-        good_blocks = {dim: 0 for dim in p.dim_names}
-
-        cycle = -1
         while need_practice:
 
             # Update the cycle counter
             cycle += 1
 
             for cycle_block, block_dim in enumerate(block_order):
+
+                # Take a break every few blocks
+                block = (cycle * 4) + cycle_block
+                if block and not block % p.blocks_per_break:
+                    stims["break"].draw()
+                    stims["fix"].draw()
+                    win.flip()
 
                 # Show the cue
                 stims["cue"].setText(block_dim)
@@ -334,7 +342,6 @@ def learn(p, win, stims):
                     trial_features = features[block_trial]
 
                     # Log the trial info
-                    block = (cycle * 4) + cycle_block
                     t_info = dict(cycle=cycle, block=block,
                                   block_trial=block_trial,
                                   context=block_dim, guide=show_guide)
@@ -366,13 +373,16 @@ def learn(p, win, stims):
 
                     cregg.wait_check_quit(p.feedback_dur)
 
+                # Update the context block counter
+                context_block[block_dim] += 1
+
                 # Update the object tracking learning performance
-                good_block = all(block_acc)
+                good_block = np.mean(block_acc) > p.trial_criterion
                 if good_block:
                     good_blocks[block_dim] += 1
 
                 # Check if we've hit criterion
-                at_criterion = all([v >= p.criterion
+                at_criterion = all([v >= p.block_criterion
                                     for v in good_blocks.values()])
                 if show_guide:
                     # Check if we can take the training wheels off
