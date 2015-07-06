@@ -209,7 +209,7 @@ def learn(p, win, stims):
 
     slide("""
           Try it for yourself. Hit space to see the pattern again and try
-          to make a "hue" decision.
+          to make a "tilt" decision (left or right).
           """)
 
     stims["fix"].draw()
@@ -219,7 +219,7 @@ def learn(p, win, stims):
     stim_event(correct_response=1, feedback=False)
 
     slide("""
-          If you said "red", that's correct!
+          If you said "right", that's correct!
 
           You'll get plenty of practice to learn how to make these decisions
           before we start the main experiment.
