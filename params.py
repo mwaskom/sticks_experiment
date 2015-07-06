@@ -16,7 +16,6 @@ base = dict(
 
     # Fixation
     fix_size=.2,
-    fix_iti_color="white",
     fix_stim_color="white",
 
     # Response settings
@@ -87,9 +86,10 @@ learn = deepcopy(base)
 learn.update(dict(
 
     log_base="data/{subject}_learn",
+    ibi_dur=1.5,
     coherence=.9,
-    block_criterion=1,  # mean correct over a block
-    blocks_at_criterion=2,  # blocks at criterion to move on
+    trials_per_block=4,
+    criterion=3,  # blocks at criterion to move on
 
     instruct_text=(
         "Use the cues to learn how to make the decisions",
@@ -115,9 +115,9 @@ psychophys.update(dict(
     log_base="data/{subject}_psychophys_run{run:02d}",
     stick_log_base="data/{subject}_psychophys_stim_run{run:02d}.npz",
 
-    ibi_dur=2,
+    ibi_dur=1.5,
 
-    cycles=10,
+    cycles=30,
     trials_per_block=4,
     blocks_per_break=5,
     coherences=(.15, .25, .35, .45, .55, .65, .75, .85),

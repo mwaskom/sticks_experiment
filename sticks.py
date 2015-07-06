@@ -35,8 +35,8 @@ def main(arglist):
 
     # Fixation point
     fix = visual.Circle(win, interpolate=True,
-                        fillColor=p.fix_iti_color,
-                        lineColor=p.fix_iti_color,
+                        fillColor=p.fix_stim_color,
+                        lineColor=p.fix_stim_color,
                         size=p.fix_size)
 
     # The main stimulus arrays
@@ -139,6 +139,102 @@ def prototype(p, win, stims):
             cregg.wait_check_quit(2)
 
 
+def learn(p, win, stims):
+    """Initial learning session to acquaint subject with the task."""
+    # Initialize the learning guide
+    stims["guide"] = LearningGuide(win, p)
+
+    # Initialize the trial controller
+    stim_event = EventEngine(win, p, stims)
+
+    # Show the instructions
+    stims["instruct"].draw()
+
+    # Set up a randomizer for the coherences
+    rs = np.random.RandomState()
+
+    # Set up mid-session instructions
+    post_guide_instruct = cregg.WaitText(win, p.post_guide_instruct_text,
+                                         advance_keys=p.wait_keys,
+                                         quit_keys=p.quit_keys)
+
+    # Set up the data log
+    log_cols = ["cycle", "block", "block_trial", "context", "guide",
+                "correct", "rt", "response", "key"]
+    log = cregg.DataLog(p, log_cols)
+
+    # Execute the experiment
+    with cregg.PresentationLoop(win, p):
+
+        show_guide = True
+        need_practice = True
+        good_blocks = {dim: 0 for dim in p.dim_names}
+
+        cycle = 0
+        while need_practice:
+
+            for cycle_block, block_dim in enumerate(p.dim_names):
+
+                # Show the cue
+                stims["cue"].setText(block_dim)
+                stims["cue"].draw()
+                win.flip()
+                cregg.wait_check_quit(p.cue_dur)
+
+                # Update the guide text
+                stims["guide"].update(getattr(p, block_dim + "_features"))
+
+                # Track the accuracy on each trial
+                block_acc = []
+
+                for block_trial in xrange(p.trials_per_block):
+
+                    block = (cycle * 4) + cycle_block
+                    t_info = dict(cycle=cycle, block=block,
+                                  block_trial=block_trial,
+                                  context=block_dim, guides=show_guide)
+
+                    # Set the stimulus coherences
+                    coh = p.coherence
+                    trial_coherences = []
+                    for dim in p.dim_names:
+                        dim_coh = coh if rs.binomial(1, .5) else 1 - coh
+                        if dim == block_dim:
+                            rel_coh = dim_coh
+                        trial_coherences.append(dim_coh)
+                    stims["array"].set_feature_probs(*trial_coherences)
+
+                    # Execute the trial
+                    correct_response = rel_coh > .5
+                    res = stim_event(correct_response, guide=show_guide)
+                    t_info.update(res)
+                    block_acc.append(res["correct"])
+                    log.add_data(t_info)
+
+                    cregg.wait_check_quit(p.feedback_dur)
+
+                # Update the object tracking learning performance
+                good_block = all(block_acc)
+                if good_block:
+                    good_blocks[block_dim] += 1
+
+                # Check if we've hit criterion
+                at_criterion = all([v >= p.criterion
+                                    for v in good_blocks.values()])
+                if show_guide:
+                    # Check if we can take the training wheels off
+                    if at_criterion:
+                        show_guide = False
+                        good_blocks = {dim: 0 for dim in p.dim_names}
+                        post_guide_instruct.draw()
+                else:
+                    # Check if we are done learning
+                    if at_criterion:
+                        need_practice = False
+
+        stims["finish"].draw()
+
+
 def psychophys(p, win, stims):
     """Method of constants psychophysics experiment."""
     # Initialize the trial controller
@@ -189,8 +285,6 @@ def psychophys(p, win, stims):
             ps = [t_info[dim + "_p"] for dim in p.dim_names]
             stims["array"].set_feature_probs(*ps)
 
-            # Determing the feature values for this trial
-
             # Determine the correct response for this trial
             correct_resp = t_info[t_info["context"] + "_p"] > .5
 
@@ -224,6 +318,7 @@ class EventEngine(object):
         self.fix = stims["fix"]
         self.array = stims["array"]
         self.feedback = stims["feedback"]
+        self.guide = stims.get("guide", None)
 
         self.break_keys = p.resp_keys + p.quit_keys
         self.resp_keys = p.resp_keys
@@ -236,7 +331,7 @@ class EventEngine(object):
 
         self.draw_feedback = True
 
-    def __call__(self, correct_response):
+    def __call__(self, correct_response, guide=False):
         """Execute a stimulus event."""
         self.array.reset()
 
@@ -271,6 +366,8 @@ class EventEngine(object):
             if draw_stim:
                 self.array.update()
                 self.array.draw()
+                if guide:
+                    self.guide.draw()
 
             # Flip the window and block until a screen refresh
             self.fix.draw()
