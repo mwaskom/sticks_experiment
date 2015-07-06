@@ -91,16 +91,10 @@ learn.update(dict(
     trials_per_block=4,
     criterion=3,  # blocks at criterion to move on
 
-    instruct_text=(
-        "Use the cues to learn how to make the decisions",
-        "",
-        "Press < or > to indicate your response",
-        "",
-        "Hit space to begin",
-    ),
-
     post_guide_instruct_text=(
         "Now you have to remember which button to press for each response",
+        "",
+        "The buttons are the same as before, and they won't ever change",
         "",
         "Hit space to continue",
     )
@@ -116,7 +110,6 @@ psychophys.update(dict(
 
     ibi_dur=1.5,
 
-    cycles=30,
     trials_per_block=4,
     blocks_per_break=5,
     coherences=(.15, .25, .35, .45, .55, .65, .75, .85),
@@ -130,3 +123,5 @@ psychophys.update(dict(
 
 
 ))
+def psychophys_cmdline(parser):
+    parser.add_argument("-cycles", type=int, default=30)

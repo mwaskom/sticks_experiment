@@ -447,6 +447,9 @@ def psychophys(p, win, stims):
             log.add_data(t_info)
             cregg.wait_check_quit(p.feedback_dur)
 
+        # Show the exit text
+        stims["finish"].draw()
+
 
 def psychophys_exit(log):
     """Save the stick stimulus log."""
