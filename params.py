@@ -32,7 +32,7 @@ base = dict(
 
     # Stick parameters
     hues=(60, 140),
-    tilts=(45, -45),
+    tilts=(-45, 45),
     widths=(.15, .075),
     lengths=(.4, .2),
 
@@ -41,8 +41,8 @@ base = dict(
 
     # Feature names
     hue_features=("red", "green"),
-    tilt_features=("right", "left"),
-    width_features=("wide", "narrow"),
+    tilt_features=("left", "right"),
+    width_features=("thick", "thin"),
     length_features=("long", "short"),
 
     # Fixed color parameters
@@ -83,21 +83,49 @@ base = dict(
 
 prototype = deepcopy(base)
 
+learn = deepcopy(base)
+learn.update(dict(
+
+    log_base="data/{subject}_learn",
+    coherence=.9,
+    block_criterion=1,  # mean correct over a block
+    blocks_at_criterion=2,  # blocks at criterion to move on
+
+    instruct_text=(
+        "Use the cues to learn how to make the decisions",
+        "",
+        "Press < or > to indicate your response",
+        "",
+        "Hit space to begin",
+    ),
+
+    post_guide_instruct_text=(
+        "Now you have to remember which button",
+        "to press for each response",
+        "",
+        "Hit space to continue",
+    )
+
+
+))
+
 psychophys = deepcopy(base)
 psychophys.update(dict(
 
-    log_base="data/{subject}_psychophys",
+    log_base="data/{subject}_psychophys_run{run:02d}",
+    stick_log_base="data/{subject}_psychophys_stim_run{run:02d}.npz",
 
-    ibi_dur=4,
+    ibi_dur=2,
 
     cycles=10,
-    trials_per_block=8,
+    trials_per_block=4,
     blocks_per_break=5,
     coherences=(.15, .25, .35, .45, .55, .65, .75, .85),
 
     instruct_text=(
         "Use the < and > keys to respond",
         "as soon as you make your decision",
+        "",
         "Press space to begin",
     )
 
