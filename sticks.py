@@ -266,7 +266,7 @@ def learn(p, win, stims):
     slide("""
           That was a lot of information!
 
-          Please tell the experiment if you have any questions.
+          Please tell the experimenter if you have any questions.
 
           Press space once you are ready to start the practice session.
 
