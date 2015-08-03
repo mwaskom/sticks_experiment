@@ -125,5 +125,30 @@ psychophys.update(dict(
 
 
 ))
+
+
 def psychophys_cmdline(parser):
     parser.add_argument("-cycles", type=int, default=30)
+
+
+training = deepcopy(base)
+training.update(dict(
+
+    log_base="data/{subject}_training_run{run:02d}",
+
+    chunks_per_block=8,
+    trials_per_chunk=4,
+
+    inter_chunk_dur=.5,
+
+    pair_counts=(4, 0, 1, 2, 0, 3),
+
+    instruct_text=(
+        "Use the < and > keys to respond",
+        "as soon as you make your decision",
+        "",
+        "Press space to begin",
+    )
+
+
+))

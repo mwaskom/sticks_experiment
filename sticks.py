@@ -467,6 +467,15 @@ def psychophys_exit(log):
     log.stick_log.save(stick_log_fname)
 
 
+def training(p, win, stims):
+    """Staircased training with structured block probabilities."""
+    pass
+
+
+def training_exit(log):
+    """Save the state of the staircase."""
+    pass
+
 # =========================================================================== #
 # =========================================================================== #
 
@@ -983,6 +992,82 @@ def psychophys_design(p, rs=None):
     # Build the full design
     design = pd.concat(design).reset_index(drop=True)
     return design
+
+
+def training_design(p, rs=None):
+
+    if rs is None:
+        rs = np.random.RandomState()
+
+    # Initialize the count matrix that controls the design
+    count_mat = np.zeros((4, 4), int)
+    triu = np.triu_indices_from(count_mat, 1)
+    count_mat[triu] = p.pair_counts
+    count_mat.T[triu] = p.pair_counts
+
+    # TODO figure out where the counterbalancing of dimensions happens
+
+    # Initialize a list of block-wise designs
+    block_designs = []
+
+    # Set up the columns we will be generating
+    design_cols = ["block_trial", "block_chunk", "context"]
+    feature_val_cols = ["hue_val", "tilt_val", "width_val", "length_val"]
+    design_cols += feature_val_cols
+    chunk_trial = pd.Series(range(p.trials_per_chunk), name="chunk_trial")
+
+    # Iterate over each cell in the design matrix
+    for i, j in itertools.product(range(4), range(4)):
+
+        # Find the paired dimensions in this cell
+        dims = p.dim_names[i], p.dim_names[j]
+        count = count_mat[i, j]
+
+        # Iterate over the number of blocks for this pairing
+        for block in xrange(count):
+
+            # Set up a list of chunk-wise designs
+            chunk_designs = []
+
+            # Iterate over thre chunks in this block
+            for chunk in xrange(p.chunks_per_block):
+
+                # Make a dataframe with design information
+                chunk_design = pd.DataFrame(columns=design_cols,
+                                            index=chunk_trial)
+
+                # Determine the relevant dimension for this chunk
+                chunk_dim = dims[chunk % 2]
+
+                # Add information we currently know to the design
+                chunk_design["context"] = chunk_dim
+                chunk_design["block_chunk"] = chunk
+                chunk_design["block_trial"] = chunk_trial + (p.trials_per_chunk
+                                                             * chunk)
+
+                # Find feature values for each dimension/trial
+                feature_vals = rs.rand(p.trials_per_chunk, 4) > .5
+                chunk_design[feature_val_cols] = feature_vals.astype(int)
+
+                # We are done with the design for this chunk
+                chunk_designs.append(chunk_design.reset_index())
+
+            # We are done with the design for this block
+            block_designs.append(pd.concat(chunk_designs))
+
+    # Randommize the order of the blocks
+    rs.shuffle(block_designs)
+
+    # Combine the blocks into a single design dataframe
+    full_design = pd.concat(block_designs)
+
+    # Add in a column that identifies the block number
+    blocks = np.repeat(range(len(block_designs)),
+                       p.chunks_per_block * p.trials_per_chunk)
+    full_design.insert(0, "block", blocks)
+
+    return full_design
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
