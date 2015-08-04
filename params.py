@@ -66,6 +66,13 @@ base = dict(
     cue_dur=.5,
 
     # Communication
+    instruct_text=(
+        "Use the < and > keys to respond",
+        "as soon as you make your decision",
+        "",
+        "Press space to begin",
+    ),
+
     break_text=(
         "Take a quick break, if you'd like!",
         "",
@@ -76,7 +83,7 @@ base = dict(
         "Run Finished!",
         ""
         "Please tell the experimenter",
-    )
+    ),
 
 )
 
@@ -94,7 +101,8 @@ learn.update(dict(
     block_criterion=3,  # blocks at criterion to move on
 
     post_guide_instruct_text=(
-        "Now you have to remember which button to press for each response",
+        "Now you have to remember which button you should press",
+        "for each response",
         "",
         "The buttons are the same as before, and they won't ever change",
         "",
@@ -116,13 +124,6 @@ psychophys.update(dict(
     blocks_per_break=5,
     coherences=(.15, .25, .35, .45, .55, .65, .75, .85),
 
-    instruct_text=(
-        "Use the < and > keys to respond",
-        "as soon as you make your decision",
-        "",
-        "Press space to begin",
-    )
-
 
 ))
 
@@ -135,20 +136,33 @@ training = deepcopy(base)
 training.update(dict(
 
     log_base="data/{subject}_training_run{run:02d}",
+    stair_temp="data/{subject}_training_stair_run{run:02d}.json",
 
     chunks_per_block=8,
     trials_per_chunk=4,
 
     inter_chunk_dur=.5,
+    post_break_dur=2,
 
     pair_counts=(4, 0, 1, 2, 0, 3),
 
-    instruct_text=(
-        "Use the < and > keys to respond",
-        "as soon as you make your decision",
-        "",
-        "Press space to begin",
-    )
+    n_staircases=2,
+    stair_start=.3,
+    stair_step=.025,
 
 
 ))
+
+
+behavior = deepcopy(base)
+behavior.update(dict(
+
+    log_base="data/{subject}_behavior_run{run:02d}",
+    stair_temp="data/{subject}_behavior_stair_run{run:02d}.json",
+    training_stair_temp="data/{subject}_training_stair_run??.json",
+
+))
+
+
+def behavior_cmdline(parser):
+    parser.add_argument("-cycles", type=int, default=30)

@@ -30,6 +30,9 @@ def main(arglist):
     # Randomize the response mappings consistently by subject
     counterbalance_feature_response_mapping(p)
 
+    # Randomize the dimensions by subject
+    counterbalance_dimension_order(p)
+
     # Open up the stimulus window
     win = cregg.launch_window(p)
     p.win_refresh_hz = win.refresh_hz
@@ -87,7 +90,9 @@ def main(arglist):
 def counterbalance_feature_response_mapping(p):
     """Randomize the feature/response mappings by the subject ID."""
     # Note that tilt features always map left-left and right-right
-    rs = cregg.subject_specific_state(p.subject, p.cbid)
+    subject = p.subject + "_features"
+    cbid = p.cbid + "_features" if p.cbid is not None else None
+    rs = cregg.subject_specific_state(subject, cbid)
     flip_hue, flip_width, flip_length = rs.binomial(1, .5, 3)
 
     # Counterbalance the hue features
@@ -106,6 +111,62 @@ def counterbalance_feature_response_mapping(p):
         p.length_features = p.length_features[1], p.length_features[0]
 
     return p
+
+
+def counterbalance_dimension_order(p):
+    """Randomize the order of dimensions for the training manipulation."""
+    subject = p.subject + "_dimensions"
+    cbid = p.cbid + "_dimensions" if p.cbid is not None else None
+    rs = cregg.subject_specific_state(subject, cbid)
+    p.dim_counterbal = list(rs.permutation(p.dim_names))
+
+
+def make_staircases(p, stair_file=None):
+    """Make staircases, either de novo or from previous values."""
+    if stair_file is None:
+        stairs = {dim: [StairHandler(startVal=p.stair_start,
+                                     stepSizes=p.stair_step,
+                                     nTrials=np.inf,
+                                     nUp=1, nDown=4,
+                                     stepType="lin",
+                                     minVal=0,
+                                     maxVal=.5) for _ in range(p.n_staircases)]
+                  for dim in p.dim_names}
+    else:
+
+        # Open the file that has the final state of each staircase
+        with open(stair_file) as fid:
+            previous_stairs = json.load(fid)
+
+        stairs = {dim: [] for dim in p.dim_names}
+        for dim in p.dim_names:
+            for val in previous_stairs[dim]:
+                stairs[dim].append(StairHandler(startVal=val,
+                                                stepSizes=p.stair_step,
+                                                nTrials=np.inf,
+                                                nUp=1, nDown=4,
+                                                stepType="lin",
+                                                minVal=0,
+                                                maxVal=.5))
+
+    # Set all stairs pointing up to avoid getting stuck in weird places
+    for dim, dim_stairs in stairs.items():
+        for sub_stairs in dim_stairs:
+            sub_stairs.currentDirection = "up"
+
+    return stairs
+
+
+def save_staircase_values(stairs, json_fname):
+    """Save final staircase values to a json file."""
+    stair_vals = {}
+    for dim, dim_stairs in stairs.iteritems():
+        stair_vals[dim] = []
+        for sub_stairs in dim_stairs:
+            stair_vals[dim].append(sub_stairs.next())
+    cregg.archive_old_version(json_fname)
+    with open(json_fname, "w") as fid:
+        json.dump(stair_vals, fid)
 
 
 def prototype(p, win, stims):
@@ -469,12 +530,93 @@ def psychophys_exit(log):
 
 def training(p, win, stims):
     """Staircased training with structured block probabilities."""
-    pass
+    # Initialize the trial controller
+    stim_event = EventEngine(win, p, stims)
+
+    # Create a design for this run
+    design = training_design(p)
+
+    # Show the instructions
+    stims["instruct"].draw()
+
+    # Initialize the data log object
+    log_cols = list(design.columns)
+    log_cols += [dim + "_stair" for dim in p.dim_names]
+    log_cols += [dim + "_p" for dim in p.dim_names]
+    log_cols += ["correct", "rt", "response", "key", "dropped_frames"]
+    log = cregg.DataLog(p, log_cols)
+
+    # Initialize the staircases
+    if p.run == 1:
+        stair_file = None
+    else:
+        stair_file = p.stair_temp.format(subject=p.subject, run=p.run - 1)
+    stairs = make_staircases(p, stair_file)
+    log.stairs = stairs
+
+    # Execute the experiment
+    with cregg.PresentationLoop(win, p, log=log, exit_func=training_exit):
+
+        for t, t_info in design.iterrows():
+
+            # Have a subject-controlled break between blocks
+            if t_info["block"] and not t_info["block_trial"]:
+                stims["break"].draw()
+                stims["fix"].draw()
+                win.flip()
+                cregg.wait_check_quit(p.post_break_dur)
+
+            if not t_info["chunk_trial"]:
+
+                # Short timed break between chunks
+                if t:
+                    stims["fix"].draw()
+                    win.flip()
+                    cregg.wait_check_quit(p.inter_chunk_dur)
+
+                # Show the cue for this block
+                stims["cue"].setText(t_info["context"])
+                stims["cue"].draw()
+                win.flip()
+                cregg.wait_check_quit(p.cue_dur)
+
+            # Determine the feature proportions for this trial
+            dim_ps = []
+            for dim in p.dim_names:
+                stair = stairs[dim][t_info[dim + "_stairs"]].next()
+                dim_p = .5 + (-1, 1)[t_info[dim + "_val"]] * stair
+                t_info[dim + "_stair"] = stair
+                t_info[dim + "_p"] = dim_p
+                dim_ps.append(dim_p)
+            stims["array"].set_feature_probs(*dim_ps)
+
+            # Determine the correct response for this trial
+            correct_resp = t_info[t_info["context"] + "_val"]
+
+            # Execute the trial
+            res = stim_event(correct_resp)
+
+            # Record the trial result
+            t_info = t_info.append(pd.Series(res))
+            log.add_data(t_info)
+
+            # Update the relevant staircase
+            rel_dim = t_info["context"]
+            rel_stairs = stairs[rel_dim][t_info[rel_dim + "_stairs"]]
+            rel_stairs.addResponse(res["correct"])
+
+            # Wait for the next trial
+            cregg.wait_check_quit(p.feedback_dur)
+
+        # Show the exit text
+        stims["finish"].draw()
 
 
 def training_exit(log):
     """Save the state of the staircase."""
-    pass
+    json_fname = log.p.stair_temp.format(subject=log.p.subject, run=log.p.run)
+    save_staircase_values(log.stairs, json_fname)
+
 
 # =========================================================================== #
 # =========================================================================== #
@@ -1005,22 +1147,22 @@ def training_design(p, rs=None):
     count_mat[triu] = p.pair_counts
     count_mat.T[triu] = p.pair_counts
 
-    # TODO figure out where the counterbalancing of dimensions happens
-
     # Initialize a list of block-wise designs
     block_designs = []
 
     # Set up the columns we will be generating
-    design_cols = ["block_trial", "block_chunk", "context"]
-    feature_val_cols = ["hue_val", "tilt_val", "width_val", "length_val"]
+    design_cols = ["block_trial", "block_chunk", "context", "context_switch"]
+    feature_val_cols = [dim + "_val" for dim in p.dim_names]
     design_cols += feature_val_cols
+    staircase_cols = [dim + "_stairs" for dim in p.dim_names]
+    design_cols += staircase_cols
     chunk_trial = pd.Series(range(p.trials_per_chunk), name="chunk_trial")
 
     # Iterate over each cell in the design matrix
     for i, j in itertools.product(range(4), range(4)):
 
         # Find the paired dimensions in this cell
-        dims = p.dim_names[i], p.dim_names[j]
+        dims = p.dim_counterbal[i], p.dim_counterbal[j]
         count = count_mat[i, j]
 
         # Iterate over the number of blocks for this pairing
@@ -1041,6 +1183,7 @@ def training_design(p, rs=None):
 
                 # Add information we currently know to the design
                 chunk_design["context"] = chunk_dim
+                chunk_design["context_switch"] = chunk_trial == 0
                 chunk_design["block_chunk"] = chunk
                 chunk_design["block_trial"] = chunk_trial + (p.trials_per_chunk
                                                              * chunk)
@@ -1048,6 +1191,11 @@ def training_design(p, rs=None):
                 # Find feature values for each dimension/trial
                 feature_vals = rs.rand(p.trials_per_chunk, 4) > .5
                 chunk_design[feature_val_cols] = feature_vals.astype(int)
+
+                # Assign staircases for each dimension/trial
+                staircase_ids = rs.randint(0, p.n_staircases,
+                                           (p.trials_per_chunk, 4))
+                chunk_design[staircase_cols] = staircase_ids
 
                 # We are done with the design for this chunk
                 chunk_designs.append(chunk_design.reset_index())
