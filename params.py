@@ -161,8 +161,15 @@ behavior.update(dict(
     stair_temp="data/{subject}_behavior_stair_run{run:02d}.json",
     training_stair_temp="data/{subject}_training_stair_run??.json",
 
+    trials_per_block=4,
+    blocks_per_break=10,
+    n_staircases=2,
+    stair_step=.025,
+
+    inter_block_dur=.5,
+
 ))
 
 
 def behavior_cmdline(parser):
-    parser.add_argument("-cycles", type=int, default=30)
+    parser.add_argument("-cycles", type=int, default=3)

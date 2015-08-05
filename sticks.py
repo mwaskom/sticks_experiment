@@ -2,7 +2,7 @@ from __future__ import division
 import sys
 import json
 import itertools
-from copy import copy
+from glob import glob
 from textwrap import dedent
 
 import numpy as np
@@ -616,6 +616,102 @@ def training_exit(log):
     """Save the state of the staircase."""
     json_fname = log.p.stair_temp.format(subject=log.p.subject, run=log.p.run)
     save_staircase_values(log.stairs, json_fname)
+    # TODO print out some information about performance
+
+
+def behavior(p, win, stims):
+    """Behavioral experiment, similar to what will be in the scanner."""
+    # Initialize the trial controller
+    stim_event = EventEngine(win, p, stims)
+
+    # Create a design for this run
+    design = behavior_design(p)
+
+    # Show the instructions
+    stims["instruct"].draw()
+
+    # Initialize the data log object
+    log_cols = list(design.columns)
+    log_cols += [dim + "_stair" for dim in p.dim_names]
+    log_cols += [dim + "_p" for dim in p.dim_names]
+    log_cols += ["correct", "rt", "response", "key", "dropped_frames"]
+    log = cregg.DataLog(p, log_cols)
+
+    # Initialize the staircases
+    if p.run == 1:
+        # For the first run of behavior, use the last run of training
+        training_stairs = glob(p.training_stair_temp.format(subject=p.subject))
+        stair_file = sorted(training_stairs)[-1]
+    else:
+        stair_file = p.stair_temp.format(subject=p.subject, run=p.run - 1)
+    stairs = make_staircases(p, stair_file)
+    log.stairs = stairs
+
+    # Execute the experiment
+    with cregg.PresentationLoop(win, p, log=log, exit_func=behavior_exit):
+
+        for t, t_info in design.iterrows():
+
+            # Have a subject-controlled break between some blocks
+            take_break = (t and
+                          not t_info["block_trial"] and
+                          not t_info["block"] % p.blocks_per_break)
+
+            if take_break:
+                stims["break"].draw()
+                stims["fix"].draw()
+                win.flip()
+
+            if not t_info["block_trial"]:
+
+                # Short timed break between blocks
+                if t:
+                    stims["fix"].draw()
+                    win.flip()
+                    cregg.wait_check_quit(p.inter_block_dur)
+
+                # Show the cue for this block
+                stims["cue"].setText(t_info["context"])
+                stims["cue"].draw()
+                win.flip()
+                cregg.wait_check_quit(p.cue_dur)
+
+            # Determine the feature proportions for this trial
+            dim_ps = []
+            for dim in p.dim_names:
+                stair = stairs[dim][t_info[dim + "_stairs"]].next()
+                dim_p = .5 + (-1, 1)[t_info[dim + "_val"]] * stair
+                t_info[dim + "_stair"] = stair
+                t_info[dim + "_p"] = dim_p
+                dim_ps.append(dim_p)
+            stims["array"].set_feature_probs(*dim_ps)
+
+            # Determine the correct response for this trial
+            correct_resp = t_info[t_info["context"] + "_val"]
+
+            # Execute the trial
+            res = stim_event(correct_resp)
+
+            # Record the trial result
+            t_info = t_info.append(pd.Series(res))
+            log.add_data(t_info)
+
+            # Update the relevant staircase
+            rel_dim = t_info["context"]
+            rel_stairs = stairs[rel_dim][t_info[rel_dim + "_stairs"]]
+            rel_stairs.addResponse(res["correct"])
+
+            # Wait for the next trial
+            cregg.wait_check_quit(p.feedback_dur)
+
+        # Show the exit text
+        stims["finish"].draw()
+
+
+def behavior_exit(log):
+    """Save the state of the staircase."""
+    json_fname = log.p.stair_temp.format(subject=log.p.subject, run=log.p.run)
+    save_staircase_values(log.stairs, json_fname)
 
 
 # =========================================================================== #
@@ -1185,8 +1281,8 @@ def training_design(p, rs=None):
                 chunk_design["context"] = chunk_dim
                 chunk_design["context_switch"] = chunk_trial == 0
                 chunk_design["block_chunk"] = chunk
-                chunk_design["block_trial"] = chunk_trial + (p.trials_per_chunk
-                                                             * chunk)
+                chunk_design["block_trial"] = (chunk_trial +
+                                               p.trials_per_chunk * chunk)
 
                 # Find feature values for each dimension/trial
                 feature_vals = rs.rand(p.trials_per_chunk, 4) > .5
@@ -1216,6 +1312,71 @@ def training_design(p, rs=None):
 
     return full_design
 
+
+def behavior_design(p, rs=None):
+
+    if rs is None:
+        rs = np.random.RandomState()
+
+    cols = ["trial", "block", "block_trial", "context", "context_switch"]
+    feature_val_cols = [dim + "_val" for dim in p.dim_names]
+    cols += feature_val_cols
+    staircase_cols = [dim + "_stairs" for dim in p.dim_names]
+    cols += staircase_cols
+
+    def make_block_dimensions():
+
+        block_dimensions = []
+        for cycle in xrange(p.cycles):
+
+            trans_mat = np.ones((4, 4), int)
+            trans_mat[np.diag_indices_from(trans_mat)] = 0
+            trans_mat = pd.DataFrame(trans_mat, p.dim_names, p.dim_names)
+
+            if not block_dimensions:
+                dim = rs.choice(p.dim_names)
+                block_dimensions.append(dim)
+            else:
+                dim = block_dimensions[-1]
+
+            while (trans_mat.values > 0).any():
+                choices = list(trans_mat.index[trans_mat.ix[dim] > 0])
+                next_dim = rs.choice(choices)
+                trans_mat.loc[dim, next_dim] -= 1
+                block_dimensions.append(next_dim)
+                dim = next_dim
+
+        return block_dimensions
+
+    # Find an ideal order of relevant dimensions
+    # This balances the transistions between dimensions, excluding
+    # self-transitions
+    good_order = False
+    while not good_order:
+        try:
+            block_order = make_block_dimensions()
+            good_order = True
+        except ValueError:
+            # Sometimes the above fails, but it has a success rate of
+            # over 50%, so it seems easier just to keep trying until
+            # we get a good order than to figure out a smarter way.
+            pass
+
+    # Compute the total number of events
+    n_blocks = len(block_order)
+    n_trials = n_blocks * p.trials_per_block
+
+    # Build the design dataframe
+    design = pd.DataFrame(columns=cols)
+    design["trial"] = np.arange(n_trials)
+    design["block"] = np.repeat(np.arange(n_blocks), p.trials_per_block)
+    design["block_trial"] = np.tile(np.arange(p.trials_per_block), n_blocks)
+    design["context"] = np.repeat(block_order, p.trials_per_block)
+    design["context_switch"] = design.block_trial == 0
+    design[feature_val_cols] = rs.randint(0, 2, (n_trials, 4))
+    design[staircase_cols] = rs.randint(0, p.n_staircases, (n_trials, 4))
+
+    return design
 
 if __name__ == "__main__":
     main(sys.argv[1:])
