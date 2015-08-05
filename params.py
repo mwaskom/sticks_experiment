@@ -45,8 +45,8 @@ base = dict(
     length_features=("long", "short"),
 
     # Fixed color parameters
-    chroma=80,
-    lightness=70,
+    lightness=80,
+    chroma=40,
 
     # Stick array parameters
     array_radius=4,

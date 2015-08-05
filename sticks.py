@@ -1023,7 +1023,8 @@ class StickArray(object):
 
     @property
     def hue_vals(self):
-        return np.take(self.rgb_colors, self.hue_idx, axis=0)
+        psychopy_rgb = self.rgb_colors * 2 - 1
+        return np.take(psychopy_rgb, self.hue_idx, axis=0)
 
     @property
     def tilt_vals(self):
