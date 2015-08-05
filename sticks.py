@@ -541,7 +541,7 @@ def training(p, win, stims):
 
     # Initialize the data log object
     log_cols = list(design.columns)
-    log_cols += [dim + "_stair" for dim in p.dim_names]
+    log_cols += [dim + "_strength" for dim in p.dim_names]
     log_cols += [dim + "_p" for dim in p.dim_names]
     log_cols += ["correct", "rt", "response", "key", "dropped_frames"]
     log = cregg.DataLog(p, log_cols)
@@ -585,7 +585,7 @@ def training(p, win, stims):
             for dim in p.dim_names:
                 stair = stairs[dim][t_info[dim + "_stairs"]].next()
                 dim_p = .5 + (-1, 1)[t_info[dim + "_val"]] * stair
-                t_info[dim + "_stair"] = stair
+                t_info[dim + "_strength"] = stair
                 t_info[dim + "_p"] = dim_p
                 dim_ps.append(dim_p)
             stims["array"].set_feature_probs(*dim_ps)
@@ -632,7 +632,7 @@ def behavior(p, win, stims):
 
     # Initialize the data log object
     log_cols = list(design.columns)
-    log_cols += [dim + "_stair" for dim in p.dim_names]
+    log_cols += [dim + "_strength" for dim in p.dim_names]
     log_cols += [dim + "_p" for dim in p.dim_names]
     log_cols += ["correct", "rt", "response", "key", "dropped_frames"]
     log = cregg.DataLog(p, log_cols)
@@ -681,7 +681,7 @@ def behavior(p, win, stims):
             for dim in p.dim_names:
                 stair = stairs[dim][t_info[dim + "_stairs"]].next()
                 dim_p = .5 + (-1, 1)[t_info[dim + "_val"]] * stair
-                t_info[dim + "_stair"] = stair
+                t_info[dim + "_strength"] = stair
                 t_info[dim + "_p"] = dim_p
                 dim_ps.append(dim_p)
             stims["array"].set_feature_probs(*dim_ps)
