@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, print_function
 import sys
 import json
 import itertools
@@ -154,7 +154,7 @@ def make_staircases(p, stair_file=None):
         for sub_stairs in dim_stairs:
             sub_stairs.currentDirection = "up"
 
-    return stairs
+    return pd.DataFrame(stairs)
 
 
 def save_staircase_values(stairs, json_fname):
@@ -555,7 +555,7 @@ def training(p, win, stims):
     log.stairs = stairs
 
     # Execute the experiment
-    with cregg.PresentationLoop(win, p, log=log, exit_func=training_exit):
+    with cregg.PresentationLoop(win, p, log=log, exit_func=staircased_exit):
 
         for t, t_info in design.iterrows():
 
@@ -583,7 +583,7 @@ def training(p, win, stims):
             # Determine the feature proportions for this trial
             dim_ps = []
             for dim in p.dim_names:
-                stair = stairs[dim][t_info[dim + "_stairs"]].next()
+                stair = stairs.loc[t_info[dim + "_stairs"], dim].next()
                 dim_p = .5 + (-1, 1)[t_info[dim + "_val"]] * stair
                 t_info[dim + "_strength"] = stair
                 t_info[dim + "_p"] = dim_p
@@ -602,7 +602,7 @@ def training(p, win, stims):
 
             # Update the relevant staircase
             rel_dim = t_info["context"]
-            rel_stairs = stairs[rel_dim][t_info[rel_dim + "_stairs"]]
+            rel_stairs = stairs.loc[t_info[rel_dim + "_stairs"], rel_dim]
             rel_stairs.addResponse(res["correct"])
 
             # Wait for the next trial
@@ -610,13 +610,6 @@ def training(p, win, stims):
 
         # Show the exit text
         stims["finish"].draw()
-
-
-def training_exit(log):
-    """Save the state of the staircase."""
-    json_fname = log.p.stair_temp.format(subject=log.p.subject, run=log.p.run)
-    save_staircase_values(log.stairs, json_fname)
-    # TODO print out some information about performance
 
 
 def behavior(p, win, stims):
@@ -648,7 +641,7 @@ def behavior(p, win, stims):
     log.stairs = stairs
 
     # Execute the experiment
-    with cregg.PresentationLoop(win, p, log=log, exit_func=behavior_exit):
+    with cregg.PresentationLoop(win, p, log=log, exit_func=staircased_exit):
 
         for t, t_info in design.iterrows():
 
@@ -679,7 +672,7 @@ def behavior(p, win, stims):
             # Determine the feature proportions for this trial
             dim_ps = []
             for dim in p.dim_names:
-                stair = stairs[dim][t_info[dim + "_stairs"]].next()
+                stair = stairs.loc[t_info[dim + "_stairs"], dim].next()
                 dim_p = .5 + (-1, 1)[t_info[dim + "_val"]] * stair
                 t_info[dim + "_strength"] = stair
                 t_info[dim + "_p"] = dim_p
@@ -698,7 +691,7 @@ def behavior(p, win, stims):
 
             # Update the relevant staircase
             rel_dim = t_info["context"]
-            rel_stairs = stairs[rel_dim][t_info[rel_dim + "_stairs"]]
+            rel_stairs = stairs.loc[t_info[rel_dim + "_stairs"], rel_dim]
             rel_stairs.addResponse(res["correct"])
 
             # Wait for the next trial
@@ -708,10 +701,29 @@ def behavior(p, win, stims):
         stims["finish"].draw()
 
 
-def behavior_exit(log):
-    """Save the state of the staircase."""
-    json_fname = log.p.stair_temp.format(subject=log.p.subject, run=log.p.run)
+def staircased_exit(log):
+    """Save the state of the staircase and report performance."""
+    json_fname = log.p.stair_temp.format(subject=log.p.subject,
+                                         run=log.p.run)
     save_staircase_values(log.stairs, json_fname)
+
+    df = pd.read_csv(log.fname)
+    p = log.p
+
+    pd.set_option("display.precision", 4)
+
+    print("")
+    print("Subject: {}".format(p.subject))
+    print("Session: {}".format(p.exp_name))
+    print("Run {}".format(p.run))
+    print("\nPerformance:")
+    print(df.groupby("context")[["rt", "correct"]].mean().T)
+    print("\nStaircase status:")
+    print(log.stairs.applymap(lambda s: s.next()))
+    print("\nDropped frames:")
+    print("Max: {:d}".format(df.dropped_frames.max()))
+    print("Median: {:.0f}".format(df.dropped_frames.median()))
+    print("")
 
 
 # =========================================================================== #
