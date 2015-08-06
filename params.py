@@ -12,7 +12,7 @@ base = dict(
     fmri_screen_number=1,
     monitor_units="deg",
     full_screen=True,
-    window_color=0,
+    window_color=(-.33, -.33, -.33),
 
     # Fixation
     fix_size=.2,

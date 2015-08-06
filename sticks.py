@@ -715,7 +715,7 @@ def staircased_exit(log):
     print("")
     print("Subject: {}".format(p.subject))
     print("Session: {}".format(p.exp_name))
-    print("Run {}".format(p.run))
+    print("Run: {}".format(p.run))
     print("\nPerformance:")
     print(df.groupby("context")[["rt", "correct"]].mean().T)
     print("\nStaircase status:")
