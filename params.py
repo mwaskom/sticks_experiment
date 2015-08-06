@@ -6,7 +6,7 @@ base = dict(
     experiment_name="sticks",
 
     # Display setup
-    monitor_name="mlw-mbair",
+    monitor_name="waglab-mbpro",
     fmri_monitor_name="cni_47",
     screen_number=0,
     fmri_screen_number=1,
