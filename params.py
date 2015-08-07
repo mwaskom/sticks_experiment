@@ -30,28 +30,28 @@ base = dict(
     feedback_colors=("black", "white"),
 
     # Stick parameters
-    hues=(60, 140),
-    tilts=(-45, 45),
-    widths=(.15, .075),
-    lengths=(.4, .2),
+    width=.1,
+    length=.25,
+
+    # Target features
+    hues=(0, 180),
+    oris=(-45, 45),
 
     # Dimension info
-    dim_names=["hue", "tilt", "width", "length"],
+    dim_names=["hue", "ori"],
 
     # Feature names
     hue_features=("red", "green"),
-    tilt_features=("left", "right"),
-    width_features=("thick", "thin"),
-    length_features=("long", "short"),
+    ori_features=("left", "right"),
 
     # Fixed color parameters
-    lightness=80,
-    chroma=40,
+    lightness=75,
+    chroma=35,
 
     # Stick array parameters
     array_radius=4,
     array_offset=0,
-    disk_radius=.45,
+    disk_radius=.3,
     disk_candidates=20,
 
     # Twinkle parameters
@@ -88,88 +88,3 @@ base = dict(
 )
 
 prototype = deepcopy(base)
-
-learn = deepcopy(base)
-learn.update(dict(
-
-    log_base="data/{subject}_learn",
-    ibi_dur=1.5,
-    coherence=.8,
-    trials_per_block=4,
-    blocks_per_break=5,
-    trial_criterion=.7,  # accuracy thresh to count as a "good" trial
-    block_criterion=3,  # blocks at criterion to move on
-
-    post_guide_instruct_text=(
-        "Now you have to remember which button you should press",
-        "for each response",
-        "",
-        "The buttons are the same as before, and they won't ever change",
-        "",
-        "Hit space to continue",
-    )
-
-
-))
-
-psychophys = deepcopy(base)
-psychophys.update(dict(
-
-    log_base="data/{subject}_psychophys_run{run:02d}",
-    stick_log_base="data/{subject}_psychophys_stim_run{run:02d}.npz",
-
-    ibi_dur=1.5,
-
-    trials_per_block=4,
-    blocks_per_break=5,
-    coherences=(.15, .25, .35, .45, .55, .65, .75, .85),
-
-
-))
-
-
-def psychophys_cmdline(parser):
-    parser.add_argument("-cycles", type=int, default=30)
-
-
-training = deepcopy(base)
-training.update(dict(
-
-    log_base="data/{subject}_training_run{run:02d}",
-    stair_temp="data/{subject}_training_stair_run{run:02d}.json",
-
-    chunks_per_block=8,
-    trials_per_chunk=4,
-
-    inter_chunk_dur=.5,
-    post_break_dur=2,
-
-    pair_counts=(4, 0, 1, 2, 0, 3),
-
-    n_staircases=2,
-    stair_start=.3,
-    stair_step=.025,
-
-
-))
-
-
-behavior = deepcopy(base)
-behavior.update(dict(
-
-    log_base="data/{subject}_behavior_run{run:02d}",
-    stair_temp="data/{subject}_behavior_stair_run{run:02d}.json",
-    training_stair_temp="data/{subject}_training_stair_run??.json",
-
-    trials_per_block=4,
-    blocks_per_break=10,
-    n_staircases=2,
-    stair_step=.025,
-
-    inter_block_dur=.5,
-
-))
-
-
-def behavior_cmdline(parser):
-    parser.add_argument("-cycles", type=int, default=3)
