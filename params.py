@@ -30,12 +30,12 @@ base = dict(
     feedback_colors=("black", "white"),
 
     # Stick parameters
-    width=.1,
-    length=.25,
+    stick_width=.1,
+    stick_length=.25,
 
     # Target features
-    hues=(0, 180),
-    oris=(-45, 45),
+    stick_hues=(20, 200),
+    stick_oris=(-45, 45),
 
     # Dimension info
     dim_names=["hue", "ori"],
@@ -52,7 +52,7 @@ base = dict(
     array_radius=4,
     array_offset=0,
     disk_radius=.3,
-    disk_candidates=20,
+    disk_candidates=30,
 
     # Twinkle parameters
     twinkle_off_prob=.05,

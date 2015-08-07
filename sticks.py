@@ -237,6 +237,7 @@ class StickArray(object):
         self.win = win
         self.p = p
         self.rgb_colors = self.lch_to_rgb(p)
+        self.stick_sizes = p.stick_width, p.stick_length
         self.random = np.random.RandomState()
 
         # This will draw an edge around the stimulus for debugging
@@ -268,6 +269,7 @@ class StickArray(object):
                                          nElements=n_sticks,
                                          elementTex=None,
                                          elementMask="sqr",
+                                         sizes=self.stick_sizes,
                                          autoLog=False)
 
         self.sticks = sticks
@@ -325,7 +327,7 @@ class StickArray(object):
     def lch_to_rgb(self, p):
         """Convert the color values from Lch to RGB."""
         rgbs = []
-        for hue in p.hues:
+        for hue in p.stick_hues:
             lch = LCHabColor(p.lightness, p.chroma, hue)
             rgb = convert_color(lch, sRGBColor).get_value_tuple()
             rgbs.append(rgb)
@@ -346,7 +348,7 @@ class StickArray(object):
         x, y = rho * np.cos(phi), rho * np.sin(phi)
         self.sticks.setXYs(np.c_[x, y])
 
-    def set_feature_probs(self, p_hue, p_ori, p_width, p_length):
+    def set_feature_probs(self, p_hue, p_ori):
         """Add attributes for the probability of features on each dimension."""
         self.p_hue = p_hue
         self.p_ori = p_ori
@@ -413,7 +415,7 @@ class StickArray(object):
 
     @property
     def ori_vals(self):
-        return np.take(self.p.oris, self.ori_idx)
+        return np.take(self.p.stick_oris, self.ori_idx)
 
     def draw(self):
 
