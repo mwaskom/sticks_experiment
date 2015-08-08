@@ -12,7 +12,7 @@ base = dict(
     fmri_screen_number=1,
     monitor_units="deg",
     full_screen=True,
-    window_color=(-.33, -.33, -.33),
+    window_color=-.5,
 
     # Fixation
     fix_size=.2,
@@ -34,7 +34,7 @@ base = dict(
     stick_length=.25,
 
     # Target features
-    stick_hues=(20, 200),
+    stick_hues=(60, 140),
     stick_oris=(-45, 45),
 
     # Dimension info
@@ -45,8 +45,8 @@ base = dict(
     ori_features=("left", "right"),
 
     # Fixed color parameters
-    lightness=75,
-    chroma=35,
+    lightness=80,
+    chroma=30,
 
     # Stick array parameters
     array_radius=4,
