@@ -283,14 +283,14 @@ class StickArray(object):
 
         # Parameters of the sampling algorithm
         array_radius = self.p.array_radius
+        fixation_radius = self.p.fixation_radius
         radius = self.p.disk_radius
         candidates = self.p.disk_candidates
 
-        # Start in the middle of the array.
-        # This will get removed later, but it will ensure that
-        # space around the fixation point is not crowded
-        samples = [(0, 0)]
-        queue = [(0, 0)]
+        # Start at a fixed point we know will work
+        start = 0, array_radius / 2
+        samples = [start]
+        queue = [start]
 
         while queue:
 
@@ -305,11 +305,12 @@ class StickArray(object):
                 r = uniform(radius, 2 * radius)
                 x, y = s_x + r * np.cos(a), s_y + r * np.sin(a)
 
-                # Check the two conditions to accept the candidate
+                # Check the three conditions to accept the candidate
                 in_array = np.sqrt(x ** 2 + y ** 2) < array_radius
                 in_ring = np.all(cdist(samples, [(x, y)]) > radius)
+                in_fixation = np.sqrt(x ** 2 + y ** 2) < fixation_radius
 
-                if in_array and in_ring:
+                if in_array and in_ring and not in_fixation:
                     # Accept the candidate
                     samples.append((x, y))
                     queue.append((x, y))

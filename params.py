@@ -50,7 +50,7 @@ base = dict(
 
     # Stick array parameters
     array_radius=4,
-    array_offset=0,
+    fixation_radius=.3,
     disk_radius=.3,
     disk_candidates=30,
 
