@@ -16,7 +16,8 @@ base = dict(
 
     # Fixation
     fix_size=.2,
-    fix_stim_color="white",
+    fix_iti_color=-1,
+    fix_stim_color=1,
 
     # Response settings
     quit_keys=["escape", "q"],
@@ -24,10 +25,6 @@ base = dict(
     finish_keys=["return"],
     trigger_keys=["5", "t"],
     resp_keys=["lshift", "rshift"],
-
-    # Feedback settings
-    feedback_glyphs=("X", "+"),
-    feedback_colors=("black", "white"),
 
     # Stick parameters
     stick_width=.1,
@@ -54,6 +51,12 @@ base = dict(
     disk_radius=.35,
     disk_candidates=30,
 
+    # Twinkle parameters
+    twinkle_off_prob=.05,
+    twinkle_on_prob=.5,
+    twinkle_timeout=9,
+    twinkle_burnin=20,
+
     # Cue frame parameters
     frame_gap=1,
     frame_width=1,
@@ -61,16 +64,13 @@ base = dict(
     frame_spoke_reversals=(7, 14),
     frame_contrast=.75,
 
-    # Twinkle parameters
-    twinkle_off_prob=.05,
-    twinkle_on_prob=.5,
-    twinkle_timeout=9,
-    twinkle_burnin=20,
+    # Feedback settings
+    feedback_dur=.5,
+    feedback_hz=(10, None),
 
     # Timing
-    stim_dur=1.5,
-    feedback_dur=.5,
-    cue_dur=.5,
+    orient_dur=.5,
+    stim_timeout=3,
 
     # Communication
     instruct_text=(

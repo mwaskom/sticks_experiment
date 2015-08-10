@@ -118,16 +118,21 @@ class EventEngine(object):
         self.win = win
         self.p = p
 
-        self.fix = stims["fix"]
-        self.array = stims["array"]
-        self.feedback = stims["feedback"]
+        self.fix = stims.get("fix", None)
+        self.array = stims.get("array", None)
+        self.frame = stims.get("frame", None)
         self.guide = stims.get("guide", None)
 
         self.break_keys = p.resp_keys + p.quit_keys
         self.resp_keys = p.resp_keys
         self.quit_keys = p.quit_keys
 
-        self.stim_frames = int(p.stim_dur * win.refresh_hz)
+        self.stim_frames = int(p.stim_timeout * win.refresh_hz)
+        self.feedback_frames = int(p.feedback_dur * win.refresh_hz)
+
+        self.feedback_flip_every = [
+            np.inf if fb_hz is None else int(win.refresh_hz / fb_hz)
+            for fb_hz in p.feedback_hz]
 
         self.clock = core.Clock()
         self.resp_clock = core.Clock()
@@ -138,8 +143,12 @@ class EventEngine(object):
         """Execute a stimulus event."""
         self.array.reset()
 
-        # This will turn to False after a response is recorded
-        draw_stim = True
+        # Show the orienting cue
+        self.fix.setFillColor(self.p.fix_stim_color)
+        self.fix.setLineColor(self.p.fix_stim_color)
+        self.fix.draw()
+        self.win.flip()
+        cregg.wait_check_quit(self.p.orient_dur)
 
         # Prepare to catch keypresses and record RTs
         keys = []
@@ -157,20 +166,20 @@ class EventEngine(object):
         self.win.nDroppedFrames = 0
 
         # Precisely control the stimulus duration
-        for _ in xrange(self.stim_frames):
+        for frame in xrange(self.stim_frames):
 
             # Look for valid keys and stop drawing if we find them
-            if not keys:
-                keys = event.getKeys(self.break_keys,
-                                     timeStamped=self.resp_clock)
-                draw_stim = not bool(keys)
+            keys = event.getKeys(self.break_keys,
+                                 timeStamped=self.resp_clock)
+            if keys:
+                break
 
             # Show a new frame of the stimulus
-            if draw_stim:
-                self.array.update()
-                self.array.draw()
-                if guide:
-                    self.guide.draw()
+            self.array.update()
+            self.array.draw()
+            self.frame.draw()
+            if guide:
+                self.guide.draw()
 
             # Flip the window and block until a screen refresh
             self.fix.draw()
@@ -193,39 +202,31 @@ class EventEngine(object):
 
         # Show the feedback
         if feedback:
-            self.feedback.update(correct)
-            self.feedback.draw()
+            self.show_feedback(correct)
+
+        # Reset the fixation point to the ITI color
+        self.fix.setFillColor(self.p.fix_iti_color)
+        self.fix.setLineColor(self.p.fix_iti_color)
+        self.fix.draw()
         self.win.flip()
 
         return dict(correct=correct, key=used_key, rt=rt,
-                    response=response,
+                    response=response, stim_frames=frame + 1,
                     dropped_frames=dropped)
 
+    def show_feedback(self, correct):
+
+        flip_every = self.feedback_flip_every[int(correct)]
+        for frame in xrange(self.feedback_frames):
+            if not frame % flip_every:
+                self.fix.setFillColor(-1 * self.fix.fillColor)
+                self.fix.setLineColor(-1 * self.fix.lineColor)
+            self.fix.draw()
+            self.win.flip()
+
 
 # =========================================================================== #
 # =========================================================================== #
-
-
-class Feedback(object):
-    """Simple glyph-based object to report correct or error."""
-    def __init__(self, win):
-
-        verts = [(-1, 0), (1, 0)], [(0, -1), (0, 1)]
-        self.shapes = [visual.ShapeStim(win, vertices=v, lineWidth=10)
-                       for v in verts]
-
-    def update(self, correct):
-
-        ori = [45, 0][correct]
-        color = ["black", "white"][correct]
-        for shape in self.shapes:
-            shape.setOri(ori)
-            shape.setLineColor(color)
-
-    def draw(self):
-
-        for shape in self.shapes:
-            shape.draw()
 
 
 class StickArray(object):
