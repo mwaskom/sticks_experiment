@@ -61,8 +61,8 @@ base = dict(
     frame_gap=1.1,
     frame_width=.8,
     frame_ring_cycles=(1.5, -3.5),
-    frame_spoke_reversals=(7, 14),
-    frame_contrast=.75,
+    frame_spoke_reversals=(6, 18),
+    frame_contrast=.66,
 
     # Feedback settings
     feedback_dur=.5,
@@ -105,7 +105,7 @@ learn.update(dict(
     targ_prop=.8,
     trials_per_block=4,
     blocks_per_break=4,
-    trial_criterion=.8,  # accuracy thresh to count as a "good" trial
+    trial_criterion=.9,  # accuracy thresh to count as a "good" trial
     block_criterion=3,  # blocks at criterion to move on
 
 
