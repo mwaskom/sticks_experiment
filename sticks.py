@@ -27,32 +27,30 @@ def main(arglist):
     p = cregg.Params(mode)
     p.set_by_cmdline(arglist)
 
+    # Randomize the response mappings consistently by subject
+    counterbalance_feature_response_mapping(p)
+
+    # Counterbalance the frame - cue mappings consistently by subject
+    counterbalance_cues(p)
+
     # Open up the stimulus window
     win = cregg.launch_window(p)
     p.win_refresh_hz = win.refresh_hz
 
     # Fixation point
-    fix = visual.Circle(win, interpolate=True,
-                        fillColor=p.fix_stim_color,
-                        lineColor=p.fix_stim_color,
-                        size=p.fix_size)
+    fix = Fixation(win, p)
 
     # The main stimulus arrays
     array = StickArray(win, p)
 
     # Text that cues the context for each block
-    cue = visual.TextStim(win, text="", color="white",
-                          pos=(0, 0), height=.75)
-
-    # Text that indicates correct or incorrect responses
-    feedback = Feedback(win)
+    frame = Frame(win, p)
 
     stims = dict(
 
         fix=fix,
         array=array,
-        cue=cue,
-        feedback=feedback,
+        frame=frame,
 
     )
 
@@ -81,28 +79,157 @@ def main(arglist):
     globals()[mode](p, win, stims)
 
 
+# =========================================================================== #
+# =========================================================================== #
+
+
+def prototype(p, win, stims):
+
+    stim_event = EventEngine(win, p, stims)
+
+    with cregg.PresentationLoop(win, p):
+
+        while True:
+
+            context = int(np.random.rand() > .5)
+            cue = np.random.choice([["A", "B"], ["C", "D"]][context])
+
+            stims["frame"].set_texture(cue)
+            probs = np.random.choice([.3, .45, .55, .7], 2)
+            stims["array"].set_feature_probs(*probs)
+            correct = probs[context] > .5
+            stim_event(correct)
+            cregg.wait_check_quit(np.random.uniform(.5, 2))
+
+
+def learn(p, win, stims):
+
+    # Initialize the stimlus controller
+    stim_event = EventEngine(win, p, stims)
+
+    # Randomizer to control stimulus delivery
+    rs = np.random.RandomState()
+
+    # Set up the data log
+    log_cols = ["cycle", "block",
+                "block_trial", "context", "cue", "frame",
+                "hue_val", "ori_val",
+                "correct", "rt", "response", "key"]
+    log = cregg.DataLog(p, log_cols)
+
+    # Set up variables that will control the flow of the session
+    show_guide = False
+    need_practice = True
+    good_blocks = {"hue": np.zeros(2), "ori": np.zeros(2)}
+    cycle = -1
+
+    with cregg.PresentationLoop(win, p):
+        while need_practice:
+
+            # Update the cycle counter
+            cycle += 1
+
+            contexts = ["hue", "ori", "hue", "ori"]
+            cues = [0, 0, 1, 1]
+            block_info = zip(contexts, cues)
+
+            for cycle_block, (block_dim, block_cue) in enumerate(block_info):
+
+                # Take a break every few blocks
+                block = (cycle * 4) + cycle_block
+                if block and not block % p.blocks_per_break:
+                    stims["break"].draw()
+                    stims["fix"].draw()
+                    win.flip()
+
+                # Update the cue
+                block_frame = p.cue_frames[block_dim][block_cue]
+                stims["frame"].set_texture(block_frame)
+
+                # Track the accuracy on each trial
+                block_acc = []
+
+                # Balance the features we see in the block
+                trials_per_feature = int(p.trials_per_block / 2)
+                f = [0] * trials_per_feature + [1] * trials_per_feature
+                features = {dim: rs.permutation(f) for dim in ["hue", "ori"]}
+
+                for block_trial in xrange(p.trials_per_block):
+
+                    # Log the trial info
+                    t_info = dict(cycle=cycle, block=block,
+                                  block_trial=block_trial,
+                                  context=block_dim, cue=block_cue,
+                                  frame=block_frame,
+                                  guide=show_guide)
+
+                    # Get the feature values
+                    trial_strengths = []
+                    for dim in ["hue", "ori"]:
+
+                        # Log the trial feature
+                        feature_idx = features[dim][block_trial]
+                        names = getattr(p, dim + "_features")
+                        t_info[dim + "_val"] = names[feature_idx]
+                        if dim == block_dim:
+                            correct_response = feature_idx
+
+                        # Determine the stick proportions on this dimension
+                        prop = p.targ_prop if feature_idx else 1 - p.targ_prop
+                        trial_strengths.append(prop)
+
+                    # Update the stimulus array
+                    stims["array"].set_feature_probs(*trial_strengths)
+
+                    # Execute the trial
+                    res = stim_event(correct_response)
+                    t_info.update(res)
+                    block_acc.append(res["correct"])
+                    log.add_data(t_info)
+
+                # Update the object tracking learning performance
+                good_block = np.mean(block_acc) > p.trial_criterion
+                if good_block:
+                    good_blocks[block_dim][block_cue] += 1
+
+                # Check if we've hit criterion
+                at_criterion = all([all(good_blocks["hue"] > p.block_criterion),
+                                    all(good_blocks["ori"] > p.block_criterion)])
+                if at_criterion:
+                    need_practice = False
+
+        stims["finish"].draw()
+
+
+
+# =========================================================================== #
+# =========================================================================== #
+
+
 def counterbalance_feature_response_mapping(p):
-    """Randomize the feature/response mappings by the subject ID."""
+    """Randomize the color/response mappings by the subject ID."""
     # Note that ori features always map left-left and right-right
     subject = p.subject + "_features"
     cbid = p.cbid + "_features" if p.cbid is not None else None
     rs = cregg.subject_specific_state(subject, cbid)
-    flip_hue, flip_width, flip_length = rs.binomial(1, .5, 3)
+    flip_hue = rs.binomial(1, .5)
 
     # Counterbalance the hue features
     if flip_hue:
-        p.hues = p.hues[1], p.hues[0]
+        p.stick_hues = p.stick_hues[1], p.stick_hues[0]
         p.hue_features = p.hue_features[1], p.hue_features[0]
 
-    # Counterbalance the width features
-    if flip_width:
-        p.widths = p.widths[1], p.widths[0]
-        p.width_features = p.width_features[1], p.width_features[0]
+    return p
 
-    # Counterbalance the length features
-    if flip_length:
-        p.lengths = p.lengths[1], p.lengths[0]
-        p.length_features = p.length_features[1], p.length_features[0]
+
+def counterbalance_cues(p):
+    """Randomize the frame/cue assignment by the subject ID."""
+    subject = p.subject + "_cues"
+    cbid = p.cbid + "_cues" if p.cbid is not None else None
+    rs = cregg.subject_specific_state(subject, cbid)
+    frames = rs.permutation(list("ABCD"))
+    p.cue_frames = dict(hue=(frames[0], frames[1]),
+                        ori=(frames[2], frames[3]))
 
     return p
 
@@ -144,8 +271,7 @@ class EventEngine(object):
         self.array.reset()
 
         # Show the orienting cue
-        self.fix.setFillColor(self.p.fix_stim_color)
-        self.fix.setLineColor(self.p.fix_stim_color)
+        self.fix.color = self.p.fix_stim_color
         self.fix.draw()
         self.win.flip()
         cregg.wait_check_quit(self.p.orient_dur)
@@ -205,8 +331,7 @@ class EventEngine(object):
             self.show_feedback(correct)
 
         # Reset the fixation point to the ITI color
-        self.fix.setFillColor(self.p.fix_iti_color)
-        self.fix.setLineColor(self.p.fix_iti_color)
+        self.fix.color = self.p.fix_iti_color
         self.fix.draw()
         self.win.flip()
 
@@ -219,8 +344,7 @@ class EventEngine(object):
         flip_every = self.feedback_flip_every[int(correct)]
         for frame in xrange(self.feedback_frames):
             if not frame % flip_every:
-                self.fix.setFillColor(-1 * self.fix.fillColor)
-                self.fix.setLineColor(-1 * self.fix.lineColor)
+                self.fix.color = -1 * self.fix.color
             self.fix.draw()
             self.win.flip()
 
@@ -523,6 +647,34 @@ class LearningGuide(object):
 
         for text in self.texts:
             text.draw()
+
+
+class Fixation(object):
+
+    def __init__(self, win, p):
+
+        self.dot = visual.Circle(win, interpolate=True,
+                                 fillColor=p.fix_iti_color,
+                                 lineColor=p.fix_iti_color,
+                                 size=p.fix_size)
+
+        self._color = p.fix_iti_color
+
+    @property
+    def color(self):
+
+        return self._color
+
+    @color.setter
+    def color(self, color):
+
+        self._color = color
+        self.dot.setFillColor(color)
+        self.dot.setLineColor(color)
+
+    def draw(self):
+
+        self.dot.draw()
 
 
 class Frame(object):

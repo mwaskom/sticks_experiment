@@ -58,9 +58,9 @@ base = dict(
     twinkle_burnin=20,
 
     # Cue frame parameters
-    frame_gap=1,
-    frame_width=1,
-    frame_ring_cycles=(1.5, 3.5),
+    frame_gap=1.1,
+    frame_width=.8,
+    frame_ring_cycles=(1.5, -3.5),
     frame_spoke_reversals=(7, 14),
     frame_contrast=.75,
 
@@ -95,3 +95,18 @@ base = dict(
 )
 
 prototype = deepcopy(base)
+
+learn = deepcopy(base)
+learn.update(dict(
+
+    log_base="data/{subject}_learn",
+
+    ibi_dur=1.5,
+    targ_prop=.8,
+    trials_per_block=4,
+    blocks_per_break=4,
+    trial_criterion=.8,  # accuracy thresh to count as a "good" trial
+    block_criterion=3,  # blocks at criterion to move on
+
+
+))
