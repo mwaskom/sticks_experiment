@@ -23,7 +23,7 @@ base = dict(
     wait_keys=["space"],
     finish_keys=["return"],
     trigger_keys=["5", "t"],
-    resp_keys=["comma", "period"],
+    resp_keys=["lshift", "rshift"],
 
     # Feedback settings
     feedback_glyphs=("X", "+"),
@@ -31,7 +31,7 @@ base = dict(
 
     # Stick parameters
     stick_width=.1,
-    stick_length=.25,
+    stick_length=.3,
 
     # Target features
     stick_hues=(60, 140),
@@ -50,9 +50,16 @@ base = dict(
 
     # Stick array parameters
     array_radius=4,
-    fixation_radius=.3,
-    disk_radius=.3,
+    fixation_radius=1,
+    disk_radius=.35,
     disk_candidates=30,
+
+    # Cue frame parameters
+    frame_gap=1,
+    frame_width=1,
+    frame_ring_cycles=(1.5, 3.5),
+    frame_spoke_reversals=(7, 14),
+    frame_contrast=.75,
 
     # Twinkle parameters
     twinkle_off_prob=.05,

@@ -107,8 +107,6 @@ def counterbalance_feature_response_mapping(p):
     return p
 
 
-
-
 # =========================================================================== #
 # =========================================================================== #
 
@@ -242,9 +240,9 @@ class StickArray(object):
 
         # This will draw an edge around the stimulus for debugging
         self.edge = visual.Circle(win,
-                                  p.array_radius + p.disk_radius / 2,
+                                  p.array_radius,
                                   edges=128,
-                                  fillColor=p.window_color,
+                                  fillColor=None,
                                   lineColor="white")
 
         # Initialize the stick positions
@@ -282,7 +280,7 @@ class StickArray(object):
         randint = self.random.randint
 
         # Parameters of the sampling algorithm
-        array_radius = self.p.array_radius
+        array_radius = self.p.array_radius - self.p.disk_radius
         fixation_radius = self.p.fixation_radius
         radius = self.p.disk_radius
         candidates = self.p.disk_candidates
@@ -509,7 +507,7 @@ class LearningGuide(object):
     """Text with the feature-response mappings to show during training."""
     def __init__(self, win, p):
 
-        offset = p.array_radius + .3
+        offset = p.array_radius + p.frame_gap + p.frame_width + .3
         self.texts = [visual.TextStim(win, pos=(-offset, 0),
                                       height=.5, alignHoriz="right"),
                       visual.TextStim(win, pos=(offset, 0),
@@ -524,6 +522,63 @@ class LearningGuide(object):
 
         for text in self.texts:
             text.draw()
+
+
+class Frame(object):
+
+    def __init__(self, win, p):
+
+        self.p = p
+        size = 2 * (p.array_radius + p.frame_gap + p.frame_width)
+
+        self.object = visual.GratingStim(win,
+                                         mask=self.mask,
+                                         contrast=p.frame_contrast,
+                                         size=size,
+                                         sf=1 / size)
+
+        self.textures = {}
+        self.textures["A"] = self.make_ring_tex(p.frame_ring_cycles[0])
+        self.textures["B"] = self.make_ring_tex(p.frame_ring_cycles[1])
+        self.textures["C"] = self.make_spoke_tex(p.frame_spoke_reversals[0])
+        self.textures["D"] = self.make_spoke_tex(p.frame_spoke_reversals[1])
+
+    def set_texture(self, which):
+
+        self.object.setTex(self.textures[which])
+
+    def make_ring_tex(self, cycles_per_degree):
+
+        x, y = self.meshgrid
+        r = np.sqrt(x ** 2 + y ** 2)
+        return np.sin(r * 2 * np.pi * cycles_per_degree)
+
+    def make_spoke_tex(self, reversals_per_hemifield):
+
+        x, y = self.meshgrid
+        a = np.arctan(y / x)
+        n = reversals_per_hemifield
+        return np.sin(a * n) * np.cos(a * n) * 2
+
+    @property
+    def meshgrid(self):
+
+        lim = self.p.array_radius + self.p.frame_gap + self.p.frame_width
+        grid = np.linspace(-lim, lim, 1024)
+        return np.meshgrid(grid, grid)
+
+    @property
+    def mask(self):
+
+        x, y = self.meshgrid
+        r = np.sqrt(x ** 2 + y ** 2)
+        inner = self.p.array_radius + self.p.frame_gap
+        outer = self.p.array_radius + self.p.frame_gap + self.p.frame_width
+        return np.where((r > inner) & (r < outer), 1, -1)
+
+    def draw(self):
+
+        self.object.draw()
 
 
 if __name__ == "__main__":
