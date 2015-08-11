@@ -105,8 +105,10 @@ learn.update(dict(
     targ_prop=.8,
     trials_per_block=4,
     blocks_per_break=4,
-    trial_criterion=.9,  # accuracy thresh to count as a "good" trial
+    post_break_dur=2,
+    trial_criterion=1,  # accuracy thresh to count as a "good" trial
     block_criterion=3,  # blocks at criterion to move on
+    iti_params=(.5, 2),  # range of uniform ITI distribution
 
 
 ))

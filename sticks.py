@@ -111,9 +111,12 @@ def learn(p, win, stims):
     rs = np.random.RandomState()
 
     # Set up the data log
-    log_cols = ["cycle", "block",
-                "block_trial", "context", "cue", "frame",
+    log_cols = ["cycle", "block", "block_trial",
+                "context", "cue", "frame", "iti",
                 "hue_val", "ori_val",
+                "hue_strength", "ori_strength",
+                "hue_prop", "ori_prop",
+                "context_strength", "context_prop",
                 "correct", "rt", "response", "key"]
     log = cregg.DataLog(p, log_cols)
 
@@ -141,6 +144,7 @@ def learn(p, win, stims):
                     stims["break"].draw()
                     stims["fix"].draw()
                     win.flip()
+                    cregg.wait_check_quit(p.post_break_dur)
 
                 # Update the cue
                 block_frame = p.cue_frames[block_dim][block_cue]
@@ -156,12 +160,16 @@ def learn(p, win, stims):
 
                 for block_trial in xrange(p.trials_per_block):
 
+                    # ITI fixation
+                    iti = rs.uniform(*p.iti_params)
+                    cregg.wait_check_quit(iti)
+
                     # Log the trial info
                     t_info = dict(cycle=cycle, block=block,
                                   block_trial=block_trial,
                                   context=block_dim, cue=block_cue,
-                                  frame=block_frame,
-                                  guide=show_guide)
+                                  frame=block_frame, guide=show_guide,
+                                  iti=iti)
 
                     # Get the feature values
                     trial_strengths = []
@@ -177,6 +185,11 @@ def learn(p, win, stims):
                         # Determine the stick proportions on this dimension
                         prop = p.targ_prop if feature_idx else 1 - p.targ_prop
                         trial_strengths.append(prop)
+                        t_info[dim + "_strength"] = np.abs(prop - .5)
+                        t_info[dim + "_prop"] = prop
+                        if dim == block_dim:
+                            t_info["context_strength"] = np.abs(prop - .5)
+                            t_info["context_prop"] = prop
 
                     # Update the stimulus array
                     stims["array"].set_feature_probs(*trial_strengths)
@@ -188,13 +201,14 @@ def learn(p, win, stims):
                     log.add_data(t_info)
 
                 # Update the object tracking learning performance
-                good_block = np.mean(block_acc) > p.trial_criterion
+                good_block = np.mean(block_acc) >= p.trial_criterion
                 if good_block:
                     good_blocks[block_dim][block_cue] += 1
 
                 # Check if we've hit criterion
-                at_criterion = all([all(good_blocks["hue"] > p.block_criterion),
-                                    all(good_blocks["ori"] > p.block_criterion)])
+                c = p.block_criterion
+                at_criterion = all([all(good_blocks["hue"] >= c),
+                                    all(good_blocks["ori"] >= c)])
                 if at_criterion:
                     need_practice = False
 
@@ -665,7 +679,7 @@ class Fixation(object):
 
         return self._color
 
-    @color.setter
+    @color.setter  # pylint: disable-msg=E0102r
     def color(self, color):
 
         self._color = color
