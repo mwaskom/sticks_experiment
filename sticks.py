@@ -116,6 +116,7 @@ def learn(p, win, stims):
                 "hue_val", "ori_val",
                 "hue_strength", "ori_strength",
                 "hue_prop", "ori_prop",
+                "hue_prop_actual", "ori_prop_actual",
                 "context_strength", "context_prop",
                 "correct", "rt", "response", "key"]
     log = cregg.DataLog(p, log_cols)
@@ -306,7 +307,7 @@ class EventEngine(object):
         self.win.nDroppedFrames = 0
 
         # Precisely control the stimulus duration
-        for frame in xrange(self.stim_frames):
+        for frame in xrange(1, self.stim_frames + 1):
 
             # Look for valid keys and stop drawing if we find them
             keys = event.getKeys(self.break_keys,
@@ -344,14 +345,21 @@ class EventEngine(object):
         if feedback:
             self.show_feedback(correct)
 
+        result = dict(correct=correct, key=used_key, rt=rt,
+                      response=response, stim_frames=frame,
+                      dropped_frames=dropped)
+
         # Reset the fixation point to the ITI color
         self.fix.color = self.p.fix_iti_color
         self.fix.draw()
         self.win.flip()
 
-        return dict(correct=correct, key=used_key, rt=rt,
-                    response=response, stim_frames=frame + 1,
-                    dropped_frames=dropped)
+        # Compute the amount of stimulus evidence over the trial
+        for dim in ["hue", "ori"]:
+            frame_data = [np.mean(f) for f in getattr(self.array.log, dim)[-1]]
+            result[dim + "_prop_actual"] = np.mean(frame_data)
+
+        return result
 
     def show_feedback(self, correct):
 
