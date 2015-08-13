@@ -43,13 +43,13 @@ base = dict(
 
     # Fixed color parameters
     lightness=80,
-    chroma=30,
+    chroma=40,
 
     # Stick array parameters
     array_radius=4,
     fixation_radius=1,
     disk_radius=.35,
-    disk_candidates=30,
+    disk_candidates=60,
 
     # Twinkle parameters
     twinkle_off_prob=.05,
@@ -96,8 +96,32 @@ base = dict(
 
 prototype = deepcopy(base)
 
+
+calibrate = deepcopy(base)
+calibrate.update(
+
+    patch_size=3,
+    patch_mask="circle",
+    patch_sf=1.5,
+
+    arrow_size=.5,
+    arrow_width=5,
+    arrow_life=3,
+    arrow_offset=1,
+
+    resp_keys=["left", "right", "space"],
+
+    flicker_every=7,
+
+    diff_start=1,
+    diff_step=.1,
+
+    repeats=4,
+
+)
+
 learn = deepcopy(base)
-learn.update(dict(
+learn.update(
 
     log_base="data/{subject}_learn",
 
@@ -111,4 +135,4 @@ learn.update(dict(
     iti_params=(.5, 1.5),  # range of uniform ITI distribution
 
 
-))
+)
