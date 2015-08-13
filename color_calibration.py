@@ -9,7 +9,9 @@ from psychopy import visual, event, core
 
 import cregg
 
-s
+import sticks
+
+
 def main(arglist):
 
 
@@ -21,6 +23,7 @@ def main(arglist):
     p.win_refresh_hz = win.refresh_hz
 
     checkerboard = Checkerboard(win, p)
+    fix = sticks.Fixation(win, p)
 
     set_points = []
 
@@ -38,6 +41,7 @@ def main(arglist):
         while checkerboard.active:
 
             checkerboard.draw()
+            fix.draw()
             win.flip()
 
         set_points.append(checkerboard.moving_l)

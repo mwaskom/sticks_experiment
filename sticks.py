@@ -27,15 +27,18 @@ def main(arglist):
     p = cregg.Params(mode)
     p.set_by_cmdline(arglist)
 
+    # Open up the stimulus window
+    win = cregg.launch_window(p)
+    p.win_refresh_hz = win.refresh_hz
+
+    visual.TextStim(win, "Generating stimuli...").draw()
+    win.flip()
+
     # Randomize the response mappings consistently by subject
     counterbalance_feature_response_mapping(p)
 
     # Counterbalance the frame - cue mappings consistently by subject
     counterbalance_cues(p)
-
-    # Open up the stimulus window
-    win = cregg.launch_window(p)
-    p.win_refresh_hz = win.refresh_hz
 
     # Fixation point
     fix = Fixation(win, p)
@@ -46,11 +49,18 @@ def main(arglist):
     # Text that cues the context for each block
     frame = Frame(win, p)
 
+    # Polygon that cues the context for each block
+    cue = visual.Polygon(win,
+                         radius=p.poly_radius,
+                         lineColor=p.poly_color,
+                         fillColor=p.poly_color,
+                         lineWidth=p.poly_linewidth)
+
     stims = dict(
 
         fix=fix,
         array=array,
-        frame=frame,
+        cue=cue
 
     )
 
@@ -92,9 +102,11 @@ def prototype(p, win, stims):
         while True:
 
             context = int(np.random.rand() > .5)
-            cue = np.random.choice([["A", "B"], ["C", "D"]][context])
+            cue = np.random.choice([[3, 4], [5, 6]][context])
 
-            stims["frame"].set_texture(cue)
+            stims["cue"].setEdges(cue)
+            stims["cue"].setVertices(stims["cue"].vertices)
+
             probs = np.random.choice([.3, .45, .55, .7], 2)
             stims["array"].set_feature_probs(*probs)
             correct = probs[context] > .5
@@ -261,8 +273,8 @@ class EventEngine(object):
         self.p = p
 
         self.fix = stims.get("fix", None)
+        self.cue = stims.get("cue", None)
         self.array = stims.get("array", None)
-        self.frame = stims.get("frame", None)
         self.guide = stims.get("guide", None)
 
         self.break_keys = p.resp_keys + p.quit_keys
@@ -318,7 +330,7 @@ class EventEngine(object):
             # Show a new frame of the stimulus
             self.array.update()
             self.array.draw()
-            self.frame.draw()
+            self.cue.draw()
             if guide:
                 self.guide.draw()
 

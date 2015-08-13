@@ -6,7 +6,7 @@ base = dict(
     experiment_name="sticks",
 
     # Display setup
-    monitor_name="waglab-mbpro",
+    monitor_name="mlw-mbair",
     fmri_monitor_name="cni_47",
     screen_number=0,
     fmri_screen_number=1,
@@ -46,7 +46,7 @@ base = dict(
     chroma=40,
 
     # Stick array parameters
-    array_radius=4,
+    array_radius=6,
     fixation_radius=1,
     disk_radius=.35,
     disk_candidates=60,
@@ -63,6 +63,11 @@ base = dict(
     frame_ring_cycles=(1.5, -3.5),
     frame_spoke_reversals=(6, 18),
     frame_contrast=.66,
+
+    # Cue polygon parameters
+    poly_radius=.5,
+    poly_linewidth=3,
+    poly_color=-.2,
 
     # Feedback settings
     feedback_dur=.5,
@@ -113,8 +118,8 @@ calibrate.update(
 
     flicker_every=7,
 
-    diff_start=1,
-    diff_step=.1,
+    diff_start=5,
+    diff_step=.5,
 
     repeats=4,
 
