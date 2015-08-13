@@ -122,10 +122,9 @@ calibrate.update(
 
     flicker_every=7,
 
-    diff_start=5,
-    diff_step=.5,
-
-    repeats=4,
+    diff_start=(5, 5, 5),
+    diff_step=(.5, .5, .5),
+    average_last=2,
 
 )
 

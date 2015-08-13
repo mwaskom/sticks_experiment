@@ -29,23 +29,26 @@ def main(arglist):
 
     expected = p.lightness
 
-    for trial in xrange(p.repeats):
+    for start, step in zip(p.diff_start, p.diff_step):
 
-        approach = ["below", "above"][trial % 2]
-        checkerboard.reset(expected, approach)
+        for approach in ["below", "above"]:
 
-        cregg.WaitText(win, [approach],
-                       advance_keys=p.wait_keys,
-                       quit_keys=p.quit_keys).draw()
+            print("starting from {:.1f}".format(expected))
+            checkerboard.start(expected, start, step, approach)
 
-        while checkerboard.active:
+            cregg.WaitText(win, [approach],
+                           advance_keys=p.wait_keys,
+                           quit_keys=p.quit_keys).draw()
 
-            checkerboard.draw()
-            fix.draw()
-            win.flip()
+            while checkerboard.active:
 
-        set_points.append(checkerboard.moving_l)
-        expected = checkerboard.moving_l
+                checkerboard.draw()
+                fix.draw()
+                win.flip()
+
+            set_points.append(checkerboard.moving_l)
+
+        expected = np.mean(set_points[-2:])
 
     print(set_points)
 
@@ -73,10 +76,8 @@ class Checkerboard(object):
                                              pos=pos[dir])
                        for dir in ["up", "down"]}
 
-        self.reset(self.p.lightness, "below")
 
-
-    def reset(self, expected, approach_from):
+    def start(self, expected, diff, delta, approach_from):
 
         self.active = True
 
@@ -88,11 +89,13 @@ class Checkerboard(object):
                                                   self.p.stick_hues[0])
 
         s = 1 if approach_from == "above" else -1
-        self.moving_l = expected + s * self.p.diff_start
+        self.moving_l = expected + s * diff
 
         self.rgb_moving = self.lch_to_psychopy_rgb(self.moving_l,
                                                    self.p.chroma,
                                                    self.p.stick_hues[1])
+
+        self.delta = delta
 
     def update(self):
 
@@ -137,7 +140,7 @@ class Checkerboard(object):
     def adjust_moving(self, which):
 
         s = 1 if which == "up" else -1
-        delta = s * self.p.diff_step
+        delta = s * self.delta
         self.moving_l += delta
 
         self.rgb_moving = self.lch_to_psychopy_rgb(self.moving_l,
