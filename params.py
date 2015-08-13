@@ -7,7 +7,7 @@ base = dict(
 
     # Display setup
     monitor_name="mlw-mbair",
-    fmri_monitor_name="cni_47",
+    fmri_monitor_name="cni_projector",
     screen_number=0,
     fmri_screen_number=1,
     monitor_units="deg",
@@ -76,6 +76,10 @@ base = dict(
     # Timing
     orient_dur=.5,
     stim_timeout=3,
+
+    # fMRI Parameters
+    equilibrium_trs=16,
+    tr=.720,
 
     # Communication
     instruct_text=(

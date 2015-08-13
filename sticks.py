@@ -97,7 +97,7 @@ def prototype(p, win, stims):
 
     stim_event = EventEngine(win, p, stims)
 
-    with cregg.PresentationLoop(win, p):
+    with cregg.PresentationLoop(win, p, fix=stims["fix"]):
 
         while True:
 
