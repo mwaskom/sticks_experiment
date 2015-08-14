@@ -57,13 +57,6 @@ base = dict(
     twinkle_timeout=9,
     twinkle_burnin=20,
 
-    # Cue frame parameters
-    frame_gap=1.1,
-    frame_width=.8,
-    frame_ring_cycles=(1.5, -3.5),
-    frame_spoke_reversals=(6, 18),
-    frame_contrast=.66,
-
     # Cue polygon parameters
     poly_radius=.5,
     poly_linewidth=3,
