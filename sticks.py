@@ -711,5 +711,15 @@ class Fixation(object):
         self.dot.draw()
 
 
+# =========================================================================== #
+# =========================================================================== #
+
+
+def training_design(p, rs=None):
+
+    if rs is None:
+        rs = np.random.RandomState()
+
+
 if __name__ == "__main__":
     main(sys.argv[1:])

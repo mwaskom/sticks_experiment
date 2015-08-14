@@ -46,7 +46,7 @@ base = dict(
     chroma=40,
 
     # Stick array parameters
-    array_radius=6,
+    array_radius=4,
     fixation_radius=1,
     disk_radius=.35,
     disk_candidates=60,
@@ -137,3 +137,12 @@ learn.update(
 
 
 )
+
+training = deepcopy(base)
+training.update(
+
+    log_base="data/{subject}_training_run{run:02d}",
+
+)
+def behavior_cmdline(parser):
+    parser.add_argument("-trials_at_cue", type=int, default=3)
