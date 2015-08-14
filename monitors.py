@@ -35,8 +35,8 @@ mlw_mbair = dict(name='mlw-mbair',
 mwmp = dict(name='mwmp',
             width=50,
             distance=55,
-            size=[1680, 1050],
-            notes="This is the Dell monitor on my office computer")
+            size=[1920, 1080],
+            notes="This is the LG monitor on my office computer")
 
 waglab_mbpro = dict(name='waglab-mbpro',
                     width=33,

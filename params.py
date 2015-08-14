@@ -9,7 +9,7 @@ base = dict(
     monitor_name="mlw-mbair",
     fmri_monitor_name="cni_47",
     screen_number=0,
-    fmri_screen_number=1,
+    fmri_screen_number=0,
     monitor_units="deg",
     full_screen=True,
     window_color=-.5,
@@ -143,6 +143,12 @@ training.update(
 
     log_base="data/{subject}_training_run{run:02d}",
 
+    block_lengths=(4, 4, 2, 1),
+    cycles_per_length=(6, 6, 12, 12),
+    randomize_blocks=(False, True, True, True),
+
+    iti_params=(.5, 1.5),  # range of uniform ITI distribution
+
+    targ_prop=.8,
+
 )
-def behavior_cmdline(parser):
-    parser.add_argument("-trials_at_cue", type=int, default=3)

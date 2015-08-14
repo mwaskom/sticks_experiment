@@ -46,9 +46,6 @@ def main(arglist):
     # The main stimulus arrays
     array = StickArray(win, p)
 
-    # Text that cues the context for each block
-    frame = Frame(win, p)
-
     # Polygon that cues the context for each block
     cue = visual.Polygon(win,
                          radius=p.poly_radius,
@@ -228,7 +225,6 @@ def learn(p, win, stims):
         stims["finish"].draw()
 
 
-
 # =========================================================================== #
 # =========================================================================== #
 
@@ -254,9 +250,9 @@ def counterbalance_cues(p):
     subject = p.subject + "_cues"
     cbid = p.cbid + "_cues" if p.cbid is not None else None
     rs = cregg.subject_specific_state(subject, cbid)
-    frames = rs.permutation(list("ABCD"))
-    p.cue_frames = dict(hue=(frames[0], frames[1]),
-                        ori=(frames[2], frames[3]))
+    cues = rs.permutation([3, 4, 5, 6])
+    p.cues = dict(hue=(cues[0], cues[1]),
+                  ori=(cues[2], cues[3]))
 
     return p
 
@@ -719,6 +715,80 @@ def training_design(p, rs=None):
 
     if rs is None:
         rs = np.random.RandomState()
+
+    # Set up the structure of the design object
+    cols = [
+            "cycle", "block",
+            "context", "cue_idx", "cue",
+            "hue_val", "ori_val",
+            "hue_prop", "ori_prop",
+            "hue_strength", "ori_strength",
+            "context_prop", "context_strength",
+            ]
+    design = []
+
+    # Iterate over the cycle parameters
+    for block_length, n_cycles, randomize in zip(p.block_lengths,
+                                                 p.cycles_per_length,
+                                                 p.randomize_blocks):
+
+        # Iterate over the cycles within each level of
+        # "cycle" is an appearance of each cue
+        for cycle in xrange(n_cycles):
+
+            # Posibly randomize the order of contexts/cues
+            if randomize:
+                block_contexts = rs.permutation(["hue", "hue", "ori", "ori"])
+                block_cues = dict(hue=list(rs.permutation([0, 1])),
+                                  ori=list(rs.permutation([0, 1])))
+            else:
+                block_contexts = ["hue", "ori", "hue", "ori"]
+                block_cues = dict(hue=[0, 1], ori=[0, 1])
+
+            # Iterate over the blocks in each cycle
+            # "block" is some number of trials with the same cue
+            for block, block_dim in enumerate(block_contexts):
+
+                # Find the cue index and actual cue (polygon shape)
+                block_cue_idx = block_cues[block_dim].pop()
+                block_cue = p.cues[block_dim][block_cue_idx]
+
+                # Set up a design object for this block
+                block_trials = pd.Series(np.arange(block_length),
+                                         name="block_trial")
+                block_design = pd.DataFrame(columns=cols, index=block_trials)
+
+                # Insert design information that is constant across the block
+                block_design["cycle"] = cycle
+                block_design["block"] = block
+                block_design["context"] = block_dim
+                block_design["cue_idx"] = block_cue_idx
+                block_design["cue"] = block_cue
+
+                strength = np.abs(p.targ_prop - .5)
+                block_design["hue_strength"] = strength
+                block_design["ori_strength"] = strength
+                block_design["context_strength"] = strength
+
+                # Iterate over trials within the block
+                for trial in xrange(block_length):
+
+                    # Assign feature values for each dimension
+                    for dim in ["hue", "ori"]:
+                        dim_val_idx = rs.randint(2)
+                        dim_names = getattr(p, dim + "_features")
+                        dim_val = dim_names[dim_val_idx]
+                        block_design.loc[trial, dim + "_val"] = dim_val
+
+                        # Determine the proportion of sticks
+                        prop = p.targ_prop if dim_val_idx else 1 - p.targ_prop
+                        block_design.loc[trial, dim + "_prop"] = prop
+                        if dim == block_dim:
+                            block_design.loc[trial, "context_prop"] = prop
+
+                design.append(block_design.reset_index())
+
+    return pd.concat(design, ignore_index=True)
 
 
 if __name__ == "__main__":
