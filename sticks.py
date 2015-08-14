@@ -227,6 +227,9 @@ def learn(p, win, stims):
 
 def training(p, win, stims):
 
+    # Initialize the learning guide
+    stims["guide"] = LearningGuide(win, p)
+
     # Initialize the stimlus controller
     stim_event = EventEngine(win, p, stims)
 
@@ -264,12 +267,15 @@ def training(p, win, stims):
             # Set the cue and stimulus attributes
             stims["cue"].setEdges(t_info["cue"])
             stims["cue"].setVertices(stims["cue"].vertices)
+            button_names = getattr(p, t_info["context"] + "_features")
+            stims["guide"].update(button_names)
             stims["array"].set_feature_probs(t_info["hue_prop"],
                                              t_info["ori_prop"])
 
             # Execute the trial
             correct_resp = t_info["context_prop"] > .5
-            res = stim_event(correct_resp)
+            res = stim_event(correct_resp,
+                             guide=t_info["guide"])
 
             # Record the result of the trial
             t_info = t_info.append(pd.Series(res))
@@ -716,7 +722,7 @@ class LearningGuide(object):
     """Text with the feature-response mappings to show during training."""
     def __init__(self, win, p):
 
-        offset = p.array_radius + p.frame_gap + p.frame_width + .3
+        offset = p.array_radius + p.guide_offset
         self.texts = [visual.TextStim(win, pos=(-offset, 0),
                                       height=.5, alignHoriz="right"),
                       visual.TextStim(win, pos=(offset, 0),
@@ -773,8 +779,9 @@ def training_design(p, rs=None):
     # Set up the structure of the design object
     cols = [
             "cycle", "block",
-            "context", "cue_idx", "cue",
+            "context", "cue_idx", "cue", "guide",
             "context_switch", "cue_switch",
+            "hue_switch", "ori_switch",
             "iti", "break",
             "hue_val", "ori_val",
             "hue_prop", "ori_prop",
@@ -784,9 +791,10 @@ def training_design(p, rs=None):
     design = []
 
     # Iterate over the cycle parameters
-    for block_length, n_cycles, randomize in zip(p.block_lengths,
-                                                 p.cycles_per_length,
-                                                 p.randomize_blocks):
+    for info in zip(p.block_lengths, p.cycles_per_length,
+                    p.randomize_blocks, p.show_guides):
+
+        block_length, n_cycles, randomize, guide = info
 
         # Iterate over the cycles within each level of
         # "cycle" is an appearance of each cue
@@ -820,6 +828,7 @@ def training_design(p, rs=None):
                 block_design["context"] = block_dim
                 block_design["cue_idx"] = block_cue_idx
                 block_design["cue"] = block_cue
+                block_design["guide"] = guide
 
                 strength = np.abs(p.targ_prop - .5)
                 block_design["hue_strength"] = strength

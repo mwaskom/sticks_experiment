@@ -62,6 +62,9 @@ base = dict(
     poly_linewidth=3,
     poly_color=-.2,
 
+    # Early training button guides
+    guide_offset=.3,
+
     # Feedback settings
     feedback_dur=.5,
     feedback_hz=(10, None),
@@ -143,9 +146,10 @@ training.update(
 
     log_base="data/{subject}_training_run{run:02d}",
 
-    block_lengths=(4, 4, 2, 1),
-    cycles_per_length=(6, 6, 12, 12),
-    randomize_blocks=(False, True, True, True),
+    block_lengths=(4, 4, 4, 2, 1),
+    cycles_per_length=(4, 4, 4, 12, 12),
+    randomize_blocks=(False, False, True, True, True),
+    show_guides=(True, False, False, False, False),
 
     trials_per_break=16,
     after_break_dur=2,
