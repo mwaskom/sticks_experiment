@@ -225,6 +225,60 @@ def learn(p, win, stims):
         stims["finish"].draw()
 
 
+def training(p, win, stims):
+
+    # Initialize the stimlus controller
+    stim_event = EventEngine(win, p, stims)
+
+    # Create a design for this session
+    design = training_design(p)
+
+    # Show the instructions
+    stims["instruct"].draw()
+
+    # Initialize the data log object
+    log_cols = list(design.columns)
+    log_cols += ["correct", "rt", "response", "key",
+                 "stim_frames", "dropped_frames"]
+    log = cregg.DataLog(p, log_cols)
+
+    # Execute the experiment
+    with cregg.PresentationLoop(win, p, log=log):
+
+        for t, t_info in design.iterrows():
+
+            if t_info["break"]:
+
+                # Show the break message
+                stims["break"].draw()
+
+                # Add a little delay after the break
+                stims["fix"].draw()
+                win.flip()
+                cregg.wait_check_quit(p.after_break_dur)
+
+            # Wait for the ITI before the stimulus
+            # This helps us relate pre-stim delay to behavior later
+            cregg.wait_check_quit(t_info["iti"])
+
+            # Set the cue and stimulus attributes
+            stims["cue"].setEdges(t_info["cue"])
+            stims["cue"].setVertices(stims["cue"].vertices)
+            stims["array"].set_feature_probs(t_info["hue_prop"],
+                                             t_info["ori_prop"])
+
+            # Execute the trial
+            correct_resp = t_info["context_prop"] > .5
+            res = stim_event(correct_resp)
+
+            # Record the result of the trial
+            t_info = t_info.append(pd.Series(res))
+            log.add_data(t_info)
+
+        # Show the exit text
+        stims["finish"].draw()
+
+
 # =========================================================================== #
 # =========================================================================== #
 
@@ -720,6 +774,8 @@ def training_design(p, rs=None):
     cols = [
             "cycle", "block",
             "context", "cue_idx", "cue",
+            "context_switch", "cue_switch",
+            "iti", "break",
             "hue_val", "ori_val",
             "hue_prop", "ori_prop",
             "hue_strength", "ori_strength",
@@ -770,6 +826,10 @@ def training_design(p, rs=None):
                 block_design["ori_strength"] = strength
                 block_design["context_strength"] = strength
 
+                # Find ITI values for each trial
+                block_design["iti"] = rs.uniform(*p.iti_params,
+                                                 size=block_length)
+
                 # Iterate over trials within the block
                 for trial in xrange(block_length):
 
@@ -788,7 +848,18 @@ def training_design(p, rs=None):
 
                 design.append(block_design.reset_index())
 
-    return pd.concat(design, ignore_index=True)
+    # Combine each chunk of the design into one file
+    design = pd.concat(design, ignore_index=True)
+
+    # Determine when there will be breaks
+    design["break"] = ~(design.index.values % p.trials_per_break).astype(bool)
+    design.loc[0, "break"] = False
+
+    # Determine when there are context and cue switches
+    design["context_switch"] = design.context != design.context.shift(1)
+    design["cue_switch"] = design.cue != design.cue.shift(1)
+
+    return design
 
 
 if __name__ == "__main__":

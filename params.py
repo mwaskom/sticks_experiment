@@ -147,6 +147,9 @@ training.update(
     cycles_per_length=(6, 6, 12, 12),
     randomize_blocks=(False, True, True, True),
 
+    trials_per_break=16,
+    after_break_dur=2,
+
     iti_params=(.5, 1.5),  # range of uniform ITI distribution
 
     targ_prop=.8,
