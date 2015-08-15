@@ -159,8 +159,7 @@ def training(p, win, stims):
                                              t_info["ori_prop"])
 
             # Execute the trial
-            correct_resp = t_info["context_prop"] > .5
-            res = stim_event(correct_resp,
+            res = stim_event(correct_response=t_info["target_response"],
                              guide=t_info["guide"])
 
             # Record the result of the trial
@@ -669,7 +668,7 @@ def training_design(p, rs=None):
             "context_switch", "cue_switch",
             "hue_switch", "ori_switch",
             "iti", "break",
-            "hue_val", "ori_val",
+            "hue_val", "ori_val", "congruent",
             "hue_prop", "ori_prop",
             "hue_strength", "ori_strength",
             "context_prop", "context_strength",
@@ -716,11 +715,6 @@ def training_design(p, rs=None):
                 block_design["cue"] = block_cue
                 block_design["guide"] = guide
 
-                strength = np.abs(p.targ_prop - .5)
-                block_design["hue_strength"] = strength
-                block_design["ori_strength"] = strength
-                block_design["context_strength"] = strength
-
                 # Find ITI values for each trial
                 block_design["iti"] = rs.uniform(*p.iti_params,
                                                  size=block_length)
@@ -738,8 +732,6 @@ def training_design(p, rs=None):
                         # Determine the proportion of sticks
                         prop = p.targ_prop if dim_val_idx else 1 - p.targ_prop
                         block_design.loc[trial, dim + "_prop"] = prop
-                        if dim == block_dim:
-                            block_design.loc[trial, "context_prop"] = prop
 
                 design.append(block_design.reset_index())
 
@@ -750,11 +742,41 @@ def training_design(p, rs=None):
     design["break"] = ~(design.index.values % p.trials_per_break).astype(bool)
     design.loc[0, "break"] = False
 
-    # Determine when there are context and cue switches
-    design["context_switch"] = design.context != design.context.shift(1)
-    design["cue_switch"] = design.cue != design.cue.shift(1)
+    # Add additional columns based on the information currently in the design
+    design = add_design_information(design, p)
 
     return design
+
+
+def add_design_information(d, p):
+    """Add information that is derived from other columns in the design."""
+    # Determine when there, context, cue, or evidence switches
+    d["context_switch"] = d.context != d.context.shift(1)
+    d["cue_switch"] = d.cue != d.cue.shift(1)
+    for dim in ["hue", "ori"]:
+        d[dim + "_switch"] = d[dim + "_val"] != d[dim + "_val"].shift(1)
+
+    # Determine the strength (unsigned correspondence of proportion
+    for dim in ["hue", "ori"]:
+        d[dim + "_strength"] = ((d[dim + "_prop"] - .5).abs()
+                                                       .astype(np.float)
+                                                       .round(2))
+
+    # Determine the proportion and strength of the relevent evidence
+    for dim in ["hue", "ori"]:
+        idx = d.context == dim
+        d.loc[idx, "context_strength"] = d.loc[idx, dim + "_strength"]
+        d.loc[idx, "context_prop"] = d.loc[idx, dim + "_prop"]
+
+    # Determine evidence congruency
+    hue_resp = d["hue_val"] == p.hue_features[1]
+    ori_resp = d["ori_val"] == p.ori_features[1]
+    d["congruent"] = hue_resp == ori_resp
+
+    # Determine the correct response
+    d["target_response"] = (d["context_prop"] > .5).astype(int)
+
+    return d
 
 
 if __name__ == "__main__":
