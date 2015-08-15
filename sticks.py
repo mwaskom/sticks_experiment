@@ -47,11 +47,7 @@ def main(arglist):
     array = StickArray(win, p)
 
     # Polygon that cues the context for each block
-    cue = visual.Polygon(win,
-                         radius=p.poly_radius,
-                         lineColor=p.poly_color,
-                         fillColor=p.poly_color,
-                         lineWidth=p.poly_linewidth)
+    cue = PolygonCue(win, p)
 
     # The guide text that helps during training and practice
     guide = LearningGuide(win, p)
@@ -105,8 +101,7 @@ def prototype(p, win, stims):
             context = int(np.random.rand() > .5)
             cue = np.random.choice([[3, 4], [5, 6]][context])
 
-            stims["cue"].setEdges(cue)
-            stims["cue"].setVertices(stims["cue"].vertices)
+            stims["cue"].set_shape(cue)
 
             probs = np.random.choice([.3, .45, .55, .7], 2)
             stims["array"].set_feature_probs(*probs)
@@ -165,8 +160,7 @@ def behavior(p, win, stims, design):
             cregg.wait_check_quit(t_info["iti"])
 
             # Set the cue and stimulus attributes
-            stims["cue"].setEdges(t_info["cue"])
-            stims["cue"].setVertices(stims["cue"].vertices)
+            stims["cue"].set_shape(t_info["cue"])
             button_names = p[t_info["context"] + "_features"]
             stims["guide"].update(button_names)
             stims["array"].set_feature_probs(t_info["hue_prop"],
@@ -665,6 +659,22 @@ class Fixation(object):
     def draw(self):
 
         self.dot.draw()
+
+
+class PolygonCue(visual.Polygon):
+
+    def __init__(self, win, p):
+
+        super(PolygonCue, self).__init__(win,
+                                         radius=p.poly_radius,
+                                         lineColor=p.poly_color,
+                                         fillColor=p.poly_color,
+                                         lineWidth=p.poly_linewidth)
+
+    def set_shape(self, sides):
+
+        self.setEdges(sides)
+        self.setVertices(self.vertices)
 
 
 # =========================================================================== #
