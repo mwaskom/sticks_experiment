@@ -136,12 +136,15 @@ def behavior(p, win, stims, design):
 
     # Initialize the data log object
     log_cols = list(design.columns)
-    log_cols += ["correct", "rt", "response", "key",
+    log_cols += ["stim_time", "correct",
+                 "rt", "response", "key",
                  "stim_frames", "dropped_frames"]
     log = cregg.DataLog(p, log_cols)
 
     # Execute the experiment
     with cregg.PresentationLoop(win, p, log=log):
+
+        stim_event.clock.reset()
 
         for t, t_info in design.iterrows():
 
@@ -247,12 +250,6 @@ class EventEngine(object):
         """Execute a stimulus event."""
         self.array.reset()
 
-        # Show the orienting cue
-        self.fix.color = self.p.fix_stim_color
-        self.fix.draw()
-        self.win.flip()
-        cregg.wait_check_quit(self.p.orient_dur)
-
         # Prepare to catch keypresses and record RTs
         keys = []
         event.clearEvents()
@@ -265,11 +262,19 @@ class EventEngine(object):
         response = np.nan
         rt = np.nan
 
+        # Determine when to show the main stimulus
+        if stim_time is None:
+            stim_time = self.clock.getTime() + self.p.orient_dur
+
+        # Show the orienting cue
+        self.fix.color = self.p.fix_stim_color
+        cregg.precise_wait(self.win, self.clock, stim_time, self.fix)
+
         # Reset the window droped frames counter
         self.win.nDroppedFrames = 0
 
         # Precisely control the stimulus duration
-        for frame in xrange(1, self.stim_frames + 1):
+        for frame in xrange(self.stim_frames):
 
             # Look for valid keys and stop drawing if we find them
             keys = event.getKeys(self.break_keys,
@@ -288,8 +293,12 @@ class EventEngine(object):
             self.fix.draw()
             self.win.flip()
 
+            # Record the time of the first flip
+            if not frame:
+                stim_time = self.clock.getTime()
+
         # Count the dropped frames
-        dropped = self.win.nDroppedFrames - 1
+        dropped = self.win.nDroppedFrames
 
         # Go through the list of recorded keys and determine the response
         for key, key_time in keys:
@@ -307,8 +316,12 @@ class EventEngine(object):
         if feedback:
             self.show_feedback(correct)
 
-        result = dict(correct=correct, key=used_key, rt=rt,
-                      response=response, stim_frames=frame,
+        result = dict(stim_time=stim_time,
+                      correct=correct,
+                      key=used_key,
+                      rt=rt,
+                      response=response,
+                      stim_frames=frame,
                       dropped_frames=dropped)
 
         # Reset the fixation point to the ITI color
@@ -324,7 +337,7 @@ class EventEngine(object):
         return result
 
     def show_feedback(self, correct):
-
+        """Indicate feedback by blinking the fixation point."""
         flip_every = self.feedback_flip_every[int(correct)]
         for frame in xrange(self.feedback_frames):
             if not frame % flip_every:
