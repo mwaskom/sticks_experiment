@@ -53,11 +53,15 @@ def main(arglist):
                          fillColor=p.poly_color,
                          lineWidth=p.poly_linewidth)
 
+    # The guide text that helps during training and practice
+    guide = LearningGuide(win, p)
+
     stims = dict(
 
         fix=fix,
+        cue=cue,
         array=array,
-        cue=cue
+        guide=guide,
 
     )
 
@@ -113,14 +117,24 @@ def prototype(p, win, stims):
 
 def training(p, win, stims):
 
-    # Initialize the learning guide
-    stims["guide"] = LearningGuide(win, p)
+    # Create a design for this session
+    design = training_design(p)
+
+    behavior(p, win, stims, design)
+
+
+def practice(p, win, stims):
+
+    # Create a design for this session
+    design = practice_design(p)
+
+    behavior(p, win, stims, design)
+
+
+def behavior(p, win, stims, design):
 
     # Initialize the stimlus controller
     stim_event = EventEngine(win, p, stims)
-
-    # Create a design for this session
-    design = training_design(p)
 
     # Show the instructions
     stims["instruct"].draw()
@@ -153,7 +167,7 @@ def training(p, win, stims):
             # Set the cue and stimulus attributes
             stims["cue"].setEdges(t_info["cue"])
             stims["cue"].setVertices(stims["cue"].vertices)
-            button_names = getattr(p, t_info["context"] + "_features")
+            button_names = p[t_info["context"] + "_features"]
             stims["guide"].update(button_names)
             stims["array"].set_feature_probs(t_info["hue_prop"],
                                              t_info["ori_prop"])
@@ -234,7 +248,8 @@ class EventEngine(object):
 
         self.draw_feedback = True
 
-    def __call__(self, correct_response, feedback=True, guide=False):
+    def __call__(self, correct_response, stim_time=None,
+                 feedback=True, guide=False):
         """Execute a stimulus event."""
         self.array.reset()
 
@@ -725,7 +740,7 @@ def training_design(p, rs=None):
                     # Assign feature values for each dimension
                     for dim in ["hue", "ori"]:
                         dim_val_idx = rs.randint(2)
-                        dim_names = getattr(p, dim + "_features")
+                        dim_names = p[dim + "_features"]
                         dim_val = dim_names[dim_val_idx]
                         block_design.loc[trial, dim + "_val"] = dim_val
 
@@ -738,9 +753,56 @@ def training_design(p, rs=None):
     # Combine each chunk of the design into one file
     design = pd.concat(design, ignore_index=True)
 
-    # Determine when there will be breaks
-    design["break"] = ~(design.index.values % p.trials_per_break).astype(bool)
-    design.loc[0, "break"] = False
+    # Add additional columns based on the information currently in the design
+    design = add_design_information(design, p)
+
+    return design
+
+
+def practice_design(p, rs=None):
+
+    if rs is None:
+        rs = np.random.RandomState()
+
+    # Set up the structure of the design object
+    cols = [
+            "context", "cue_idx", "cue", "guide",
+            "context_switch", "cue_switch",
+            "hue_switch", "ori_switch",
+            "iti", "break",
+            "hue_val", "ori_val", "congruent",
+            "hue_prop", "ori_prop",
+            "hue_strength", "ori_strength",
+            "context_prop", "context_strength",
+            ]
+
+    # Determine the major parameters for each trial
+    context = rs.permutation(np.tile(["hue", "ori"], p.trials / 2))
+    hue = rs.permutation(np.tile(p.hue_features, p.trials / 2))
+    ori = rs.permutation(np.tile(p.ori_features, p.trials / 2))
+
+    # Begin setting up the design object
+    trials = np.arange(p.trials)
+    design = pd.DataFrame(columns=cols, index=trials)
+    design["context"] = context
+    design["hue_val"] = hue
+    design["ori_val"] = ori
+    design["guide"] = p.guides
+    design["iti"] = rs.uniform(*p.iti_params, size=p.trials)
+
+    # Assign the cues
+    for dim in ["hue", "ori"]:
+        cue_idx = np.tile([0, 1], p.trials / 4)
+        cues = np.array(p.cues[dim])[cue_idx]
+        design.loc[design.context == dim, "cue_idx"] = cue_idx
+        design.loc[design.context == dim, "cue"] = cues
+
+    # Assign the feature proportions
+    for dim in ["hue", "ori"]:
+        names = p[dim + "_features"]
+        features = design[dim + "_val"]
+        design.loc[features == names[1], dim + "_prop"] = p.targ_prop
+        design.loc[features == names[0], dim + "_prop"] = 1 - p.targ_prop
 
     # Add additional columns based on the information currently in the design
     design = add_design_information(design, p)
@@ -775,6 +837,11 @@ def add_design_information(d, p):
 
     # Determine the correct response
     d["target_response"] = (d["context_prop"] > .5).astype(int)
+
+    # Determine when there will be breaks
+    d["break"] = ~(d.index.values % p.trials_per_break).astype(bool)
+    d.loc[0, "break"] = False
+
 
     return d
 
