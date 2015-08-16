@@ -46,7 +46,7 @@ base = dict(
     chroma=40,
 
     # Stick array parameters
-    array_radius=4.5,
+    array_radius=5.5,
     fixation_radius=1,
     disk_radius=.35,
     disk_candidates=60,
