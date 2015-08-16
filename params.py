@@ -160,7 +160,7 @@ psychophys.update(
 
     log_base="data/{subject}_practice_run{run:02d}",
     targ_props=[.52, .58, .64, .70, .76],
-    permutation_attempts=10,
+    permutation_attempts=1500,
 
 )
 def psychophys_cmdline(parser):

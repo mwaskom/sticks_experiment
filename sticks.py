@@ -112,17 +112,19 @@ def prototype(p, win, stims):
 
 def training(p, win, stims):
 
-    # Create a design for this session
     design = training_design(p)
-
     behavior(p, win, stims, design)
 
 
 def practice(p, win, stims):
 
-    # Create a design for this session
     design = practice_design(p)
+    behavior(p, win, stims, design)
 
+
+def psychophys(p, win, stims):
+
+    design = psychophys_design(p)
     behavior(p, win, stims, design)
 
 
@@ -845,55 +847,68 @@ def psychophys_design(p, rs=None):
             "context_prop", "context_strength",
             ]
 
+    # Find the cartesian product of the different variables
     conditions = itertools.product(["hue", "ori"], [0, 1],
                                    p.hue_features, p.ori_features,
                                    p.targ_props, p.targ_props)
-    condition_cols = ["context", "cue_idx",
-                      "hue", "ori",
+    condition_cols = ["context", "cue_idx", "hue", "ori",
                       "hue_targ_prop", "ori_targ_prop"]
     conditions = pd.DataFrame(list(conditions) * p.cycles,
                               columns=condition_cols)
 
+    # Set up the design object
     ntrials = len(conditions)
     design = pd.DataFrame(columns=cols, index=np.arange(ntrials))
 
+    # Add information that isn't contingenton the main variables
     design["guide"] = False
     design["iti"] = rs.uniform(*p.iti_params, size=ntrials)
 
+    # Add a subset of the main variables
     design[condition_cols[:4]] = conditions.iloc[:, :4]
 
+    # Add the feature proportions
     for dim in ["hue", "ori"]:
         design[dim + "_prop"] = np.where(design[dim] == p[dim + "_features"][0],
                                          1 - conditions[dim + "_targ_prop"],
                                          conditions[dim + "_targ_prop"])
 
+    # Do the mapping from context cue index to identity
+    for dim in ["hue", "ori"]:
         cue_idx = design.loc[design.context == dim, "cue_idx"]
         cues = np.array(p.cues[dim])[cue_idx.values]
         design.loc[design.context == dim, "cue"] = cues
 
-    permuters = []
-    costs = []
+    # Explore a large space to balance context switches with respect to
+    # the coherence values on the two dimension
+    best_permuter = None
+    best_cost = np.inf
     for _ in xrange(p.permutation_attempts):
+
+        # Randomize the rows of the design
         permuter = rs.permutation(design.index)
         candidate = design.iloc[permuter].copy().reset_index(drop=True)
+
+        # Identify context switch trials
         candidate["context_switch"] = (candidate.context !=
                                        candidate.context.shift(1))
-        candidate = add_design_information(candidate, p)
+
+        # Find the proportion of switch trials within each bin
         switch_table = candidate.pivot_table(values="context_switch",
                                              index="hue_prop",
                                              columns="ori_prop")
+
+        # Compute how far this deviates from ideal and save
         ideal = np.ones(switch_table.shape) * .5
         cost = np.square(switch_table - ideal).stack().sum()
-        permuters.append(permuter)
-        costs.append(cost)
+        if cost < best_cost:
+            best_cost = cost
+            best_permuter = permuter
 
-    best_cost = np.argmin(costs)
-    best_permuter = permuters[best_cost]
-
-    return costs
-
+    # Randomize the design using the winning order
     design = design.iloc[best_permuter].reset_index(drop=True)
 
+    # Add in other information that can be derived from what we already know
     design = add_design_information(design, p)
 
     return design
