@@ -147,10 +147,21 @@ practice = deepcopy(base)
 practice.update(
 
     log_base="data/{subject}_practice_run{run:02d}",
-
     targ_prop=.7,
 
 )
 def practice_cmdline(parser):
     parser.add_argument("-trials", type=int, default=100)
     parser.add_argument("-guides", action="store_true")
+
+
+psychophys = deepcopy(base)
+psychophys.update(
+
+    log_base="data/{subject}_practice_run{run:02d}",
+    targ_props=[.52, .58, .64, .70, .76],
+    permutation_attempts=10,
+
+)
+def psychophys_cmdline(parser):
+    parser.add_argument("-cycles", type=int, default=1)

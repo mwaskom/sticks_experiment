@@ -198,8 +198,6 @@ def counterbalance_feature_response_mapping(p):
         p.stick_hues = p.stick_hues[1], p.stick_hues[0]
         p.hue_features = p.hue_features[1], p.hue_features[0]
 
-    return p
-
 
 def counterbalance_cues(p):
     """Randomize the frame/cue assignment by the subject ID."""
@@ -209,8 +207,6 @@ def counterbalance_cues(p):
     cues = rs.permutation([3, 4, 5, 6])
     p.cues = dict(hue=(cues[0], cues[1]),
                   ori=(cues[2], cues[3]))
-
-    return p
 
 
 # =========================================================================== #
@@ -706,7 +702,7 @@ def training_design(p, rs=None):
             "context_switch", "cue_switch",
             "hue_switch", "ori_switch",
             "iti", "break",
-            "hue_val", "ori_val", "congruent",
+            "hue", "ori", "congruent",
             "hue_prop", "ori_prop",
             "hue_strength", "ori_strength",
             "context_prop", "context_strength",
@@ -762,13 +758,13 @@ def training_design(p, rs=None):
 
                     # Assign feature values for each dimension
                     for dim in ["hue", "ori"]:
-                        dim_val_idx = rs.randint(2)
+                        dim_idx = rs.randint(2)
                         dim_names = p[dim + "_features"]
-                        dim_val = dim_names[dim_val_idx]
-                        block_design.loc[trial, dim + "_val"] = dim_val
+                        dim = dim_names[dim_idx]
+                        block_design.loc[trial, dim] = dim
 
                         # Determine the proportion of sticks
-                        prop = p.targ_prop if dim_val_idx else 1 - p.targ_prop
+                        prop = p.targ_prop if dim_idx else 1 - p.targ_prop
                         block_design.loc[trial, dim + "_prop"] = prop
 
                 design.append(block_design.reset_index())
@@ -793,7 +789,7 @@ def practice_design(p, rs=None):
             "context_switch", "cue_switch",
             "hue_switch", "ori_switch",
             "iti", "break",
-            "hue_val", "ori_val", "congruent",
+            "hue", "ori", "congruent",
             "hue_prop", "ori_prop",
             "hue_strength", "ori_strength",
             "context_prop", "context_strength",
@@ -808,8 +804,8 @@ def practice_design(p, rs=None):
     trials = np.arange(p.trials)
     design = pd.DataFrame(columns=cols, index=trials)
     design["context"] = context
-    design["hue_val"] = hue
-    design["ori_val"] = ori
+    design["hue"] = hue
+    design["ori"] = ori
     design["guide"] = p.guides
     design["iti"] = rs.uniform(*p.iti_params, size=p.trials)
 
@@ -823,11 +819,81 @@ def practice_design(p, rs=None):
     # Assign the feature proportions
     for dim in ["hue", "ori"]:
         names = p[dim + "_features"]
-        features = design[dim + "_val"]
-        design.loc[features == names[1], dim + "_prop"] = p.targ_prop
-        design.loc[features == names[0], dim + "_prop"] = 1 - p.targ_prop
+        design.loc[design[dim] == names[1], dim + "_prop"] = p.targ_prop
+        design.loc[design[dim] == names[0], dim + "_prop"] = 1 - p.targ_prop
 
     # Add additional columns based on the information currently in the design
+    design = add_design_information(design, p)
+
+    return design
+
+
+def psychophys_design(p, rs=None):
+
+    if rs is None:
+        rs = np.random.RandomState()
+
+    # Set up the structure of the design object
+    cols = [
+            "context", "cue_idx", "cue", "guide",
+            "context_switch", "cue_switch",
+            "hue_switch", "ori_switch",
+            "iti", "break",
+            "hue", "ori", "congruent",
+            "hue_prop", "ori_prop",
+            "hue_strength", "ori_strength",
+            "context_prop", "context_strength",
+            ]
+
+    conditions = itertools.product(["hue", "ori"], [0, 1],
+                                   p.hue_features, p.ori_features,
+                                   p.targ_props, p.targ_props)
+    condition_cols = ["context", "cue_idx",
+                      "hue", "ori",
+                      "hue_targ_prop", "ori_targ_prop"]
+    conditions = pd.DataFrame(list(conditions) * p.cycles,
+                              columns=condition_cols)
+
+    ntrials = len(conditions)
+    design = pd.DataFrame(columns=cols, index=np.arange(ntrials))
+
+    design["guide"] = False
+    design["iti"] = rs.uniform(*p.iti_params, size=ntrials)
+
+    design[condition_cols[:4]] = conditions.iloc[:, :4]
+
+    for dim in ["hue", "ori"]:
+        design[dim + "_prop"] = np.where(design[dim] == p[dim + "_features"][0],
+                                         1 - conditions[dim + "_targ_prop"],
+                                         conditions[dim + "_targ_prop"])
+
+        cue_idx = design.loc[design.context == dim, "cue_idx"]
+        cues = np.array(p.cues[dim])[cue_idx.values]
+        design.loc[design.context == dim, "cue"] = cues
+
+    permuters = []
+    costs = []
+    for _ in xrange(p.permutation_attempts):
+        permuter = rs.permutation(design.index)
+        candidate = design.iloc[permuter].copy().reset_index(drop=True)
+        candidate["context_switch"] = (candidate.context !=
+                                       candidate.context.shift(1))
+        candidate = add_design_information(candidate, p)
+        switch_table = candidate.pivot_table(values="context_switch",
+                                             index="hue_prop",
+                                             columns="ori_prop")
+        ideal = np.ones(switch_table.shape) * .5
+        cost = np.square(switch_table - ideal).stack().sum()
+        permuters.append(permuter)
+        costs.append(cost)
+
+    best_cost = np.argmin(costs)
+    best_permuter = permuters[best_cost]
+
+    return costs
+
+    design = design.iloc[best_permuter].reset_index(drop=True)
+
     design = add_design_information(design, p)
 
     return design
@@ -839,7 +905,7 @@ def add_design_information(d, p):
     d["context_switch"] = d.context != d.context.shift(1)
     d["cue_switch"] = d.cue != d.cue.shift(1)
     for dim in ["hue", "ori"]:
-        d[dim + "_switch"] = d[dim + "_val"] != d[dim + "_val"].shift(1)
+        d[dim + "_switch"] = d[dim != d[dim].shift(1)]
 
     # Determine the strength (unsigned correspondence of proportion
     for dim in ["hue", "ori"]:
@@ -854,8 +920,8 @@ def add_design_information(d, p):
         d.loc[idx, "context_prop"] = d.loc[idx, dim + "_prop"]
 
     # Determine evidence congruency
-    hue_resp = d["hue_val"] == p.hue_features[1]
-    ori_resp = d["ori_val"] == p.ori_features[1]
+    hue_resp = d["hue"] == p.hue_features[1]
+    ori_resp = d["ori"] == p.ori_features[1]
     d["congruent"] = hue_resp == ori_resp
 
     # Determine the correct response
@@ -864,7 +930,6 @@ def add_design_information(d, p):
     # Determine when there will be breaks
     d["break"] = ~(d.index.values % p.trials_per_break).astype(bool)
     d.loc[0, "break"] = False
-
 
     return d
 
