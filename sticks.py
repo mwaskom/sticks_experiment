@@ -815,7 +815,7 @@ def practice_design(p, rs=None):
 
     # Assign the cues
     for dim in ["hue", "ori"]:
-        cue_idx = np.tile([0, 1], p.trials / 4)
+        cue_idx = rs.randint(0, 2, p.trials / 2)
         cues = np.array(p.cues[dim])[cue_idx]
         design.loc[design.context == dim, "cue_idx"] = cue_idx
         design.loc[design.context == dim, "cue"] = cues
