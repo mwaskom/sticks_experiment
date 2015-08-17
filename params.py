@@ -166,3 +166,18 @@ psychophys.update(
 )
 def psychophys_cmdline(parser):
     parser.add_argument("-cycles", type=int, default=1)
+
+
+scan = deepcopy(base)
+scan.update(
+
+    log_base="data/{subject}_scan_run{run:02d}",
+
+    n_designs=16,
+
+    focb_seed=410,
+    focb_batches=50,
+    focb_batch_size=100,
+    focb_cost_tol=0.01,
+
+)
