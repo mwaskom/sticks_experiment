@@ -80,7 +80,7 @@ class ColorPatches(object):
 
         grid = np.linspace(-1, 1, 128)
         x, y = np.meshgrid(grid, grid)
-        mask = ((x ** 2 + y ** 2 < 1) & (x < 0)) * 2 - 1
+        mask = np.where((x ** 2 + y ** 2 < 1) & (x < 0), 1, -1)
         masks = mask, mask[:, ::-1]
 
         patches = [visual.GratingStim(win,

@@ -119,7 +119,7 @@ calibrate.update(
 
     start_vals=[75, 85],
 
-    step_sizes=.25,
+    step_sizes=.2,
     reversals=5,
 
 )
