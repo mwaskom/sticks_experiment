@@ -925,7 +925,8 @@ def psychophys_design(p, rs=None):
 
     # Add the feature proportions
     for dim in ["hue", "ori"]:
-        design[dim + "_prop"] = np.where(design[dim] == p[dim + "_features"][0],
+        lower_prop_feature = design[dim] == p[dim + "_features"][0]
+        design[dim + "_prop"] = np.where(lower_prop_feature,
                                          1 - conditions[dim + "_targ_prop"],
                                          conditions[dim + "_targ_prop"])
 
