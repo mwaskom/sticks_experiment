@@ -70,7 +70,7 @@ base = dict(
     feedback_hz=(10, None),
 
     # Timing
-    orient_dur=.5,
+    orient_dur=.72,
     stim_timeout=3,
     iti_params=(.5, 1.5),
     after_break_dur=2,
