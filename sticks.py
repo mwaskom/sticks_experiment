@@ -52,12 +52,16 @@ def main(arglist):
     # The guide text that helps during training and practice
     guide = LearningGuide(win, p)
 
+    # Progress bar to show during behavioral breaks
+    progress = ProgressBar(win, p)
+
     stims = dict(
 
         fix=fix,
         cue=cue,
         array=array,
         guide=guide,
+        progress=progress,
 
     )
 
@@ -151,6 +155,10 @@ def behavior(p, win, stims, design):
         for t, t_info in design.iterrows():
 
             if t_info["break"]:
+
+                # Show a progress bar
+                stims["progress"].update_bar(t / len(design))
+                stims["progress"].draw()
 
                 # Show the break message
                 stims["break"].draw()
@@ -685,6 +693,55 @@ class PolygonCue(visual.Polygon):
 
         self.setEdges(sides)
         self.setVertices(self.vertices)
+
+
+class ProgressBar(object):
+
+    def __init__(self, win, p):
+
+        self.p = p
+
+        self.width = width = p.prog_bar_width
+        self.height = height = p.prog_bar_height
+        self.position = position = p.prog_bar_position
+
+        color = p.prog_bar_color
+        linewidth = p.prog_bar_linewidth
+
+        self.full_verts = np.array([(0, 0), (0, 1),
+                                    (1, 1), (1, 0)], np.float)
+
+        frame_verts = self.full_verts.copy()
+        frame_verts[:, 0] *= width
+        frame_verts[:, 1] *= height
+        frame_verts[:, 0] -= width / 2
+        frame_verts[:, 1] += position
+
+        self.frame = visual.ShapeStim(win,
+                                      fillColor=None,
+                                      lineColor=color,
+                                      lineWidth=linewidth,
+                                      vertices=frame_verts)
+
+        self.bar = visual.ShapeStim(win,
+                                    fillColor=color,
+                                    lineColor=color,
+                                    lineWidth=linewidth)
+
+    def update_bar(self, prop):
+
+        bar_verts = self.full_verts.copy()
+        bar_verts[:, 0] *= self.width * prop
+        bar_verts[:, 1] *= self.height
+        bar_verts[:, 0] -= self.width / 2
+        bar_verts[:, 1] += self.position
+        self.bar.vertices = bar_verts
+        self.bar.setVertices(bar_verts)
+
+    def draw(self):
+
+        self.bar.draw()
+        self.frame.draw()
 
 
 # =========================================================================== #

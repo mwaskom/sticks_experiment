@@ -65,6 +65,13 @@ base = dict(
     # Early training button guides
     guide_offset=.3,
 
+    # Progress bar shown during breaks
+    prog_bar_width=5,
+    prog_bar_height=.25,
+    prog_bar_position=-3,
+    prog_bar_linewidth=2,
+    prog_bar_color="white",
+
     # Feedback settings
     feedback_dur=.5,
     feedback_hz=(10, None),
