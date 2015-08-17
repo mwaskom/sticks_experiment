@@ -158,7 +158,7 @@ def practice_cmdline(parser):
 psychophys = deepcopy(base)
 psychophys.update(
 
-    log_base="data/{subject}_practice_run{run:02d}",
+    log_base="data/{subject}_psychophys_run{run:02d}",
     targ_props=[.52, .58, .64, .70, .76],
     permutation_attempts=1500,
 
