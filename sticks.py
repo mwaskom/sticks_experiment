@@ -40,6 +40,9 @@ def main(arglist):
     # Counterbalance the frame - cue mappings consistently by subject
     counterbalance_cues(p)
 
+    # Load the subject specific lightness values for the second color
+    subject_specific_colors(p)
+
     # Fixation point
     fix = Fixation(win, p)
 
@@ -217,6 +220,19 @@ def counterbalance_cues(p):
     cues = rs.permutation([3, 4, 5, 6])
     p.cues = dict(hue=(cues[0], cues[1]),
                   ori=(cues[2], cues[3]))
+
+
+def subject_specific_colors(p):
+    """Load the pre-calibrated lightness value for this subject."""
+    fname = p.color_file.format(subject=p.subject, monitor=p.monitor_name)
+    try:
+        with open(fname) as fid:
+            L = json.load(fid)["calibrated_L"]
+    except IOError:
+        warnings.warn("Could not open {}".format(fname))
+        L = p.lightness
+
+    p.lightness_by_hue = [p.lightness, L]
 
 
 # =========================================================================== #
@@ -453,8 +469,8 @@ class StickArray(object):
     def lch_to_rgb(self, p):
         """Convert the color values from Lch to RGB."""
         rgbs = []
-        for hue in p.stick_hues:
-            lch = LCHabColor(p.lightness, p.chroma, hue)
+        for lightness, hue in zip(p.lightness_by_hue, p.stick_hues):
+            lch = LCHabColor(lightness, p.chroma, hue)
             rgb = convert_color(lch, sRGBColor).get_value_tuple()
             rgbs.append(rgb)
         return np.array(rgbs)

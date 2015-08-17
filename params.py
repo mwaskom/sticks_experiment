@@ -45,6 +45,9 @@ base = dict(
     lightness=80,
     chroma=40,
 
+    # File with calibrated color values
+    color_file="data/{subject}_{monitor}_colors.json",
+
     # Stick array parameters
     array_radius=5.5,
     fixation_radius=1,
@@ -89,10 +92,7 @@ base = dict(
 
     # Communication
     instruct_text=(
-        "Use the < and > keys to respond",
-        "as soon as you make your decision",
-        "",
-        "Press space to begin",
+        "Press space to begin the experiment",
     ),
 
     break_text=(
@@ -115,12 +115,16 @@ prototype = deepcopy(base)
 calibrate = deepcopy(base)
 calibrate.update(
 
+    log_base="data/{subject}_{monitor}_calibration",
+
     patch_size=5,
 
     start_vals=[75, 85],
-
-    step_sizes=.2,
+    step_sizes=.25,
+    trials=50,
     reversals=5,
+
+    iti=.25,
 
 )
 
