@@ -108,22 +108,12 @@ prototype = deepcopy(base)
 calibrate = deepcopy(base)
 calibrate.update(
 
-    patch_size=3,
-    patch_mask="circle",
-    patch_sf=1.5,
+    patch_size=5,
 
-    arrow_size=.5,
-    arrow_width=5,
-    arrow_life=3,
-    arrow_offset=1,
+    start_vals=[75, 85],
 
-    resp_keys=["left", "right", "space"],
-
-    flicker_every=7,
-
-    diff_start=(5, 5, 5),
-    diff_step=(.5, .5, .5),
-    average_last=2,
+    step_sizes=.25,
+    reversals=5,
 
 )
 
