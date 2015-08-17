@@ -62,7 +62,7 @@ base = dict(
 
     # Cue polygon parameters
     poly_radius=.5,
-    poly_linewidth=3,
+    poly_linewidth=1,
     poly_color=-.2,
 
     # Early training button guides
