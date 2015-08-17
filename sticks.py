@@ -248,12 +248,6 @@ class EventEngine(object):
         """Execute a stimulus event."""
         self.array.reset()
 
-        # Prepare to catch keypresses and record RTs
-        keys = []
-        event.clearEvents()
-        self.resp_clock.reset()
-        self.clock.reset()
-
         # Initialize the output variables
         correct = False
         used_key = np.nan
@@ -267,6 +261,11 @@ class EventEngine(object):
         # Show the orienting cue
         self.fix.color = self.p.fix_stim_color
         cregg.precise_wait(self.win, self.clock, stim_time, self.fix)
+
+        # Prepare to catch keypresses and record RTs
+        keys = []
+        event.clearEvents()
+        self.resp_clock.reset()
 
         # Reset the window droped frames counter
         self.win.nDroppedFrames = 0
