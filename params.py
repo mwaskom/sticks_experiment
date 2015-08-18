@@ -29,9 +29,9 @@ base = dict(
     quit_keys=["escape", "q"],
     wait_keys=["space"],
     finish_keys=["return"],
-    trigger_keys=["t"],
+    trigger_keys=["t", "5"],
     resp_keys=["lshift", "rshift"],
-    fmri_resp_keys=["4", "5"],
+    fmri_resp_keys=["4", "9"],
 
     # Stick parameters
     stick_width=.1,
