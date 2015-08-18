@@ -150,8 +150,8 @@ def behavior(p, win, stims, design):
 
     # Initialize the data log object
     log_cols = list(design.columns)
-    log_cols += ["stim_onset", "correct",
-                 "rt", "response", "key",
+    log_cols += ["cue_onset", "stim_onset",
+                 "correct", "rt", "response", "key",
                  "stim_frames", "dropped_frames"]
     log = cregg.DataLog(p, log_cols)
 
@@ -212,8 +212,8 @@ def scan(p, win, stims):
 
     # Initialize the data log object
     log_cols = list(design.columns)
-    log_cols += ["stim_onset", "correct",
-                 "rt", "response", "key",
+    log_cols += ["cue_onset", "stim_onset",
+                 "correct", "rt", "response", "key",
                  "stim_frames", "dropped_frames"]
     log = cregg.DataLog(p, log_cols)
 
@@ -342,6 +342,7 @@ class EventEngine(object):
 
         # Wait till cue time
         cregg.precise_wait(self.win, self.clock, cue_time, self.fix)
+        cue_onset = self.clock.getTime()
 
         # Show the orienting cue
         self.fix.color = self.p.fix_stim_color
@@ -398,7 +399,8 @@ class EventEngine(object):
         if feedback:
             self.show_feedback(correct)
 
-        result = dict(stim_onset=stim_onset,
+        result = dict(cue_onset=cue_onset,
+                      stim_onset=stim_onset,
                       correct=correct,
                       key=used_key,
                       rt=rt,
