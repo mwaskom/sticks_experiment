@@ -190,7 +190,7 @@ psychophys = deepcopy(base)
 psychophys.update(
 
     log_base="data/{subject}_psychophys_run{run:02d}",
-    targ_props=[.52, .58, .64, .70, .76],
+    targ_props=[.52, .56, .60, .64, .68],
     permutation_attempts=1500,
 
 )
