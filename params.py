@@ -29,8 +29,9 @@ base = dict(
     quit_keys=["escape", "q"],
     wait_keys=["space"],
     finish_keys=["return"],
-    trigger_keys=["5", "t"],
+    trigger_keys=["t"],
     resp_keys=["lshift", "rshift"],
+    fmri_resp_keys=["4", "5"],
 
     # Stick parameters
     stick_width=.1,
@@ -86,7 +87,7 @@ base = dict(
     feedback_hz=(10, None),
 
     # Timing
-    orient_dur=.72,
+    orient_dur=.7,
     stim_timeout=2.8,
     iti_params=(.5, 1.5),
     after_break_dur=2,
@@ -94,6 +95,7 @@ base = dict(
 
     # fMRI Parameters
     equilibrium_trs=16,
+    leadout_trs=12,
     tr=.720,
 
     # Communication
@@ -112,6 +114,8 @@ base = dict(
         ""
         "Please tell the experimenter",
     ),
+
+    setup_text_size=.5,
 
 )
 
@@ -205,6 +209,10 @@ scan.update(
     log_base="data/{subject}_scan_run{run:02d}",
     design_base="design/scan_design_{}.csv",
 
+    strength_file="data/{subject}_stimulus_strength.json",
+    strength_defaults=dict(hue=dict(easy=.15, hard=.05),
+                           ori=dict(easy=.15, hard=.05)),
+
     n_designs=16,
     trs_per_trial=6,
 
@@ -214,12 +222,13 @@ scan.update(
     focb_cost_tol=0.01,
 
     eff_seed=1045,
-    eff_batches=50,
-    eff_batch_size=100,
-    eff_geom_p=.5,
+    eff_n_sched=1000,
+    eff_geom_p=.33,
     eff_geom_loc=-1,
-    eff_geom_support=(0, 11),
+    eff_geom_support=(0, 12),
     eff_fir_basis=32,
     eff_leadout_trs=12,
+
+    n_stairs=2,
 
 )

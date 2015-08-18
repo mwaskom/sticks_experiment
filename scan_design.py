@@ -1,4 +1,5 @@
-
+from __future__ import division, print_function
+from string import letters
 import itertools
 import numpy as np
 from numpy.linalg import pinv
@@ -8,7 +9,27 @@ from joblib import Parallel, delayed
 
 import moss
 from moss import glm
-import cregg
+
+import params
+
+
+class Params(object):
+    """Mock the cregg Params object so we don't depend on Psychopy."""
+    def __init__(self, dict):
+        for key, val in dict.iteritems():
+            setattr(self, key, val)
+
+
+def main():
+
+    p = Params(params.scan)
+    print("Optimizing event order")
+    designs = optimize_focb(p)
+    print("Found {:d} suitable designs".format(len(designs)))
+    for design, label in zip(designs, letters):
+        print("Optimizing event timing for schedule {}".format(label))
+        schedule = optimize_efficiency(design, p)
+        schedule.to_csv(p.design_base.format(label.lower()), index=False)
 
 
 def optimize_focb(p):
@@ -80,17 +101,13 @@ def optimize_efficiency(design, p):
     best_schedule = None
     best_efficiency = 0
 
-    for _ in xrange(p.eff_batches):
-
-        schedue_generator = candidate_schedule_generator(design, p, rs,
-                                                         p.focb_batch_size)
-        candidates = Parallel(n_jobs=-1)(delayed(schedule_efficiency)(
-                                         d, p.eff_fir_basis, p.eff_leadout_trs)
-                                         for d in schedue_generator)
-        for sched, eff in candidates:
-            if eff > best_efficiency:
-                best_schedule = sched
-                best_efficiency = eff
+    for sched in candidate_schedule_generator(design, p, rs, p.eff_n_sched):
+        _, eff = schedule_efficiency(sched,
+                                     p.eff_fir_basis,
+                                     p.eff_leadout_trs)
+        if eff > best_efficiency:
+            best_schedule = sched
+            best_efficiency = eff
 
     return best_schedule
 
@@ -118,6 +135,7 @@ def get_iti_distribution(n_trials, p, rs):
     x = np.arange(*p.eff_geom_support)
     iti_pmf = stats.geom(p.eff_geom_p, loc=p.eff_geom_loc).pmf(x)
     iti_counts = np.round((iti_pmf / iti_pmf.sum()) * n_trials)
+    iti_counts[0] += (n_trials - iti_counts.sum())
 
     iti_trs = [np.repeat(x_i, c) for x_i, c in zip(x, iti_counts)]
     iti_trs = np.concatenate(iti_trs)
@@ -127,7 +145,7 @@ def get_iti_distribution(n_trials, p, rs):
 def schedule_efficiency(schedule, nbasis, leadout_trs):
     """Compute the FIR design matrix efficiency for a given schedule."""
     par = pd.DataFrame(dict(onset=schedule.trial_time_tr,
-                            condition="trial"))
+                            condition=schedule.context))
 
     fir = glm.FIR(tr=1, nbasis=nbasis, offset=-1)
     ntp = par.onset.max() + leadout_trs
@@ -137,3 +155,7 @@ def schedule_efficiency(schedule, nbasis, leadout_trs):
                          tr=1, oversampling=1).design_matrix.values
     eff = 1 / np.trace(pinv(X.T.dot(X)))
     return schedule, eff
+
+
+if __name__ == "__main__":
+    main()

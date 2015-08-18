@@ -3,6 +3,7 @@ import sys
 import json
 import itertools
 from glob import glob
+from string import letters
 from textwrap import dedent
 
 import numpy as np
@@ -31,7 +32,8 @@ def main(arglist):
     win = cregg.launch_window(p)
     p.win_refresh_hz = win.refresh_hz
 
-    visual.TextStim(win, "Generating stimuli...").draw()
+    visual.TextStim(win, "Generating stimuli...",
+                    height=p.setup_text_size).draw()
     win.flip()
 
     # Randomize the response mappings consistently by subject
@@ -131,6 +133,9 @@ def practice(p, win, stims):
 
 def psychophys(p, win, stims):
 
+    visual.TextStim(win, "Generating design...",
+                    height=p.setup_text_size).draw()
+    win.flip()
     design = psychophys_design(p)
     behavior(p, win, stims, design)
 
@@ -145,13 +150,13 @@ def behavior(p, win, stims, design):
 
     # Initialize the data log object
     log_cols = list(design.columns)
-    log_cols += ["stim_time", "correct",
+    log_cols += ["stim_onset", "correct",
                  "rt", "response", "key",
                  "stim_frames", "dropped_frames"]
     log = cregg.DataLog(p, log_cols)
 
     # Execute the experiment
-    with cregg.PresentationLoop(win, p, log=log):
+    with cregg.PresentationLoop(win, p, log=log, fix=stims["fix"]):
 
         stim_event.clock.reset()
 
@@ -194,6 +199,57 @@ def behavior(p, win, stims, design):
         stims["finish"].draw()
 
 
+def scan(p, win, stims):
+
+    # Initialize the stimlus controller
+    stim_event = EventEngine(win, p, stims)
+
+    # Show the instructions
+    stims["instruct"].draw()
+
+    # Generate the full design object
+    design = scan_design(p)
+
+    # Initialize the data log object
+    log_cols = list(design.columns)
+    log_cols += ["stim_onset", "correct",
+                 "rt", "response", "key",
+                 "stim_frames", "dropped_frames"]
+    log = cregg.DataLog(p, log_cols)
+
+    # Execute the experiment
+    with cregg.PresentationLoop(win, p, log=log, fix=stims["fix"]):
+
+        stim_event.clock.reset()
+
+        for t, t_info in design.iterrows():
+
+            # Set the cue and stimulus attributes
+            stims["cue"].set_shape(t_info["cue"])
+            stims["array"].set_feature_probs(t_info["hue_prop"],
+                                             t_info["ori_prop"])
+
+            # Execute the trial
+            res = stim_event(cue_time=t_info["cue_time"],
+                             stim_time=t_info["stim_time"],
+                             correct_response=t_info["target_response"])
+
+            # Record the result of the trial
+            t_info = t_info.append(pd.Series(res))
+            log.add_data(t_info)
+
+        # Show the fix point during leadout TRs
+        stims["fix"].draw()
+        finish_time = (t_info["trial_time_tr"] +
+                       p.trs_per_trial +
+                       t_info["iti_trs"] +
+                       p.leadout_trs) * p.tr
+        cregg.precise_wait(win, stim_event.clock, finish_time, stims["fix"])
+
+        # Show the exit text
+        stims["finish"].draw()
+
+
 # =========================================================================== #
 # =========================================================================== #
 
@@ -229,7 +285,7 @@ def subject_specific_colors(p):
         with open(fname) as fid:
             L = json.load(fid)["calibrated_L"]
     except IOError:
-        warnings.warn("Could not open {}".format(fname))
+        print("Could not open {}; using defaults".format(fname))
         L = p.lightness
 
     p.lightness_by_hue = [p.lightness, L]
@@ -267,7 +323,7 @@ class EventEngine(object):
 
         self.draw_feedback = True
 
-    def __call__(self, correct_response, stim_time=None,
+    def __call__(self, correct_response, cue_time=None, stim_time=None,
                  feedback=True, guide=False):
         """Execute a stimulus event."""
         self.array.reset()
@@ -279,8 +335,13 @@ class EventEngine(object):
         rt = np.nan
 
         # Determine when to show the main stimulus
+        if cue_time is None:
+            cue_time = self.clock.getTime()
         if stim_time is None:
             stim_time = self.clock.getTime() + self.p.orient_dur
+
+        # Wait till cue time
+        cregg.precise_wait(self.win, self.clock, cue_time, self.fix)
 
         # Show the orienting cue
         self.fix.color = self.p.fix_stim_color
@@ -316,7 +377,7 @@ class EventEngine(object):
 
             # Record the time of the first flip
             if not frame:
-                stim_time = self.clock.getTime()
+                stim_onset = self.clock.getTime()
 
         # Count the dropped frames
         dropped = self.win.nDroppedFrames
@@ -337,7 +398,7 @@ class EventEngine(object):
         if feedback:
             self.show_feedback(correct)
 
-        result = dict(stim_time=stim_time,
+        result = dict(stim_onset=stim_onset,
                       correct=correct,
                       key=used_key,
                       rt=rt,
@@ -987,6 +1048,76 @@ def psychophys_design(p, rs=None):
     return design
 
 
+def scan_design(p):
+
+    # Use a predictably random schedule for each run
+    rs = cregg.subject_specific_state(p.subject, p.cbid)
+    labels = list(letters[:p.n_designs].lower())
+    run_label = rs.permutation(labels)[p.run - 1]
+    schedule_fname = p.design_base.format(run_label)
+    schedule = pd.read_csv(schedule_fname)
+
+    # Load the subject's strength file
+    fname = p.strength_file.format(subject=p.subject)
+    try:
+        with open(fname) as fid:
+            stim_strength = json.load(fid)
+    except IOError:
+        print("Could not open {}; using defaults".format(fname))
+        stim_strength = p.strength_defaults
+
+    # Initialize the design object
+    cols = [
+            "context", "cue_idx", "cue",
+            "context_switch", "cue_switch",
+            "hue_switch", "ori_switch",
+            "hue", "ori", "congruent",
+            "hue_diff", "ori_diff",
+            "hue_prop", "ori_prop",
+            "hue_strength", "ori_strength",
+            "context_prop", "context_strength",
+            "iti_trs", "iti", "break",
+            "trial_time_tr",
+            "cue_time", "stim_time",
+            "target_response",
+            ]
+
+    trials = np.arange(len(schedule))
+    design = pd.DataFrame(columns=cols, index=trials)
+    design.update(schedule)
+
+    # Do the mapping from context cue index to identity
+    for dim in ["hue", "ori"]:
+        cue_idx = design.loc[design.context == dim, "cue_idx"]
+        cues = np.array(p.cues[dim])[cue_idx.values.astype(int)]
+        design.loc[design.context == dim, "cue"] = cues
+
+    # Assign strengths to each feature at each difficulty level
+    for dim in ["hue", "ori"]:
+        for diff in ["easy", "hard"]:
+            idx = design[dim + "_diff"] == diff
+            design.loc[idx, dim + "_strength"] = stim_strength[dim][diff]
+        for mul, feat in zip([-1, 1], p[dim + "_features"]):
+            idx = design[dim] == feat
+            prop = (.5 + mul * design.loc[idx, dim + "_strength"])
+            design.loc[idx, dim + "_prop"] = prop.astype(np.float).round(2)
+
+    # Convert ITI duration from TR units to seconds
+    design["iti"] = design.iti_trs * p.tr
+
+    # Schedule cue and stimulus onset in seconds
+    design["stim_time"] = (design.trial_time_tr + 1) * p.tr
+    design["cue_time"] = design.stim_time - p.orient_dur
+
+    # No breaks in the scan session
+    design["break"] = False
+
+    # Add columns dependent on information in the design
+    design = add_design_information(design, p)
+
+    return design
+
+
 def add_design_information(d, p):
     """Add information that is derived from other columns in the design."""
     # Determine when there, context, cue, or evidence switches
@@ -997,15 +1128,17 @@ def add_design_information(d, p):
 
     # Determine the strength (unsigned correspondence of proportion
     for dim in ["hue", "ori"]:
-        d[dim + "_strength"] = ((d[dim + "_prop"] - .5).abs()
-                                                       .astype(np.float)
-                                                       .round(2))
+        if dim + "_prop" in d:
+            d[dim + "_strength"] = ((d[dim + "_prop"] - .5).abs()
+                                                           .astype(np.float)
+                                                           .round(2))
 
     # Determine the proportion and strength of the relevent evidence
     for dim in ["hue", "ori"]:
-        idx = d.context == dim
-        d.loc[idx, "context_strength"] = d.loc[idx, dim + "_strength"]
-        d.loc[idx, "context_prop"] = d.loc[idx, dim + "_prop"]
+        if dim + "_prop" in d:
+            idx = d.context == dim
+            d.loc[idx, "context_strength"] = d.loc[idx, dim + "_strength"]
+            d.loc[idx, "context_prop"] = d.loc[idx, dim + "_prop"]
 
     # Determine evidence congruency
     hue_resp = d["hue"] == p.hue_features[1]
@@ -1013,7 +1146,10 @@ def add_design_information(d, p):
     d["congruent"] = hue_resp == ori_resp
 
     # Determine the correct response
-    d["target_response"] = (d["context_prop"] > .5).astype(int)
+    for dim in ["hue", "ori"]:
+        idx = d.context == dim
+        right_target = p[dim + "_features"][1]
+        d.loc[idx, "target_response"] = d.loc[idx, dim] == right_target
 
     # Determine when there will be breaks
     d["break"] = ~(d.index.values % p.trials_per_break).astype(bool)
