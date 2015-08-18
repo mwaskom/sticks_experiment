@@ -1,6 +1,12 @@
 from __future__ import division
 from copy import deepcopy
 
+
+# --------------------------------------------------------------------- #
+# Base parameters
+# --------------------------------------------------------------------- #
+
+
 base = dict(
 
     experiment_name="sticks",
@@ -112,6 +118,11 @@ base = dict(
 prototype = deepcopy(base)
 
 
+# --------------------------------------------------------------------- #
+# Color calibration
+# --------------------------------------------------------------------- #
+
+
 calibrate = deepcopy(base)
 calibrate.update(
 
@@ -129,6 +140,11 @@ calibrate.update(
 )
 
 
+# --------------------------------------------------------------------- #
+# Training sessions
+# --------------------------------------------------------------------- #
+
+
 training = deepcopy(base)
 training.update(
 
@@ -144,6 +160,11 @@ training.update(
 )
 
 
+# --------------------------------------------------------------------- #
+# Practice sessions
+# --------------------------------------------------------------------- #
+
+
 practice = deepcopy(base)
 practice.update(
 
@@ -154,6 +175,11 @@ practice.update(
 def practice_cmdline(parser):
     parser.add_argument("-trials", type=int, default=100)
     parser.add_argument("-guides", action="store_true")
+
+
+# --------------------------------------------------------------------- #
+# Psychophyiscs sessions
+# --------------------------------------------------------------------- #
 
 
 psychophys = deepcopy(base)
