@@ -87,7 +87,7 @@ base = dict(
 
     # Timing
     orient_dur=.72,
-    stim_timeout=3,
+    stim_timeout=2.8,
     iti_params=(.5, 1.5),
     after_break_dur=2,
     trials_per_break=16,
@@ -194,16 +194,32 @@ def psychophys_cmdline(parser):
     parser.add_argument("-cycles", type=int, default=1)
 
 
+# --------------------------------------------------------------------- #
+# Scan sessions
+# --------------------------------------------------------------------- #
+
+
 scan = deepcopy(base)
 scan.update(
 
     log_base="data/{subject}_scan_run{run:02d}",
+    design_base="design/scan_design_{}.csv",
 
     n_designs=16,
+    trs_per_trial=6,
 
     focb_seed=410,
     focb_batches=50,
     focb_batch_size=100,
     focb_cost_tol=0.01,
+
+    eff_seed=1045,
+    eff_batches=50,
+    eff_batch_size=100,
+    eff_geom_p=.5,
+    eff_geom_loc=-1,
+    eff_geom_support=(0, 11),
+    eff_fir_basis=32,
+    eff_leadout_trs=12,
 
 )

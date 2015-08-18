@@ -1,6 +1,8 @@
 
 import itertools
 import numpy as np
+from numpy.linalg import pinv
+from scipy import stats
 import pandas as pd
 from joblib import Parallel, delayed
 
@@ -21,7 +23,7 @@ def optimize_focb(p):
                                                         p.focb_batch_size)
         candidates = Parallel(n_jobs=-1)(delayed(design_focb_cost)(d)
                                          for d in design_generator)
-        keep =[(d, c) for d, c in candidates if c < p.focb_cost_tol]
+        keep = [(d, c) for d, c in candidates if c < p.focb_cost_tol]
         designs.extend(keep)
 
     costs = np.array([c for d, c in designs])
@@ -66,3 +68,72 @@ def shuffle_conditions_generator(conditions, rs, n=1000):
     for _ in xrange(n):
         shuffler = rs.permutation(conditions.index)
         yield conditions.reindex(shuffler).reset_index(drop=True)
+
+
+# -----
+
+
+def optimize_efficiency(design, p):
+
+    rs = np.random.RandomState(p.eff_seed)
+
+    best_schedule = None
+    best_efficiency = 0
+
+    for _ in xrange(p.eff_batches):
+
+        schedue_generator = candidate_schedule_generator(design, p, rs,
+                                                         p.focb_batch_size)
+        candidates = Parallel(n_jobs=-1)(delayed(schedule_efficiency)(
+                                         d, p.eff_fir_basis, p.eff_leadout_trs)
+                                         for d in schedue_generator)
+        for sched, eff in candidates:
+            if eff > best_efficiency:
+                best_schedule = sched
+                best_efficiency = eff
+
+    return best_schedule
+
+
+def candidate_schedule_generator(design, p, rs, n=1000):
+    """Generator to make design schedules with randomized onsets."""
+    n_trials = len(design)
+    iti_trs = get_iti_distribution(n_trials, p, rs)
+    for _ in xrange(n):
+        schedule = design.copy()
+        iti_trs = rs.permutation(iti_trs)
+        schedule["iti_trs"] = iti_trs
+        compute_onsets(schedule, p)
+        yield schedule
+
+
+def compute_onsets(design, p):
+    """Given a design with ITI information, compute trial onset time."""
+    onsets = (design.iti_trs + p.trs_per_trial).cumsum().shift(1).fillna(0)
+    design["trial_time_tr"] = onsets
+
+
+def get_iti_distribution(n_trials, p, rs):
+    """Return a vector of ITIs (in TR units) for each trial."""
+    x = np.arange(*p.eff_geom_support)
+    iti_pmf = stats.geom(p.eff_geom_p, loc=p.eff_geom_loc).pmf(x)
+    iti_counts = np.round((iti_pmf / iti_pmf.sum()) * n_trials)
+
+    iti_trs = [np.repeat(x_i, c) for x_i, c in zip(x, iti_counts)]
+    iti_trs = np.concatenate(iti_trs)
+    return iti_trs
+
+
+def schedule_efficiency(schedule, nbasis, leadout_trs):
+    """Compute the FIR design matrix efficiency for a given schedule."""
+    par = pd.DataFrame(dict(onset=schedule.trial_time_tr,
+                            condition="trial"))
+
+    fir = glm.FIR(tr=1, nbasis=nbasis, offset=-1)
+    ntp = par.onset.max() + leadout_trs
+
+    X = glm.DesignMatrix(par, fir, ntp,
+                         hpf_cutoff=None,
+                         tr=1, oversampling=1).design_matrix.values
+    eff = 1 / np.trace(pinv(X.T.dot(X)))
+    return schedule, eff
