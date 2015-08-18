@@ -119,6 +119,8 @@ base = dict(
 
 )
 
+
+instruct = deepcopy(base)
 prototype = deepcopy(base)
 
 
@@ -229,6 +231,8 @@ scan.update(
     eff_fir_basis=32,
     eff_leadout_trs=12,
 
-    n_stairs=2,
+    finish_text=(
+        "Run Finished!",
+    ),
 
 )

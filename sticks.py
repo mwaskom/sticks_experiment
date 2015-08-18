@@ -2,7 +2,6 @@ from __future__ import division, print_function
 import sys
 import json
 import itertools
-from glob import glob
 from string import letters
 from textwrap import dedent
 
@@ -14,7 +13,6 @@ from colormath.color_objects import LCHabColor, sRGBColor
 from colormath.color_conversions import convert_color
 
 from psychopy import core, visual, event
-from psychopy.data import StairHandler
 import cregg
 
 import warnings
@@ -97,6 +95,148 @@ def main(arglist):
 
 # =========================================================================== #
 # =========================================================================== #
+
+
+def instruct(p, win, stims):
+
+    stim_event = EventEngine(win, p, stims)
+
+    main_text = visual.TextStim(win, height=.5)
+    next_text = visual.TextStim(win, "(press space to continue)",
+                                height=.4,
+                                pos=(0, -5))
+
+    def slide(message, with_next_text=True):
+
+        main_text.setText(dedent(message))
+        main_text.draw()
+        if with_next_text:
+            next_text.draw()
+        win.flip()
+        cregg.wait_and_listen("space", .25)
+
+    slide("""
+          Welcome to the experiment - thank you for participating!
+          """)
+
+    slide("""
+          In the experiment today, you're going to be looking at simple
+          patterns and making decisions about what you see in them.
+          Hit space to see the kind of pattern you'll be looking at.
+          """, False)
+
+    stims["fix"].draw()
+    win.flip()
+    cregg.wait_check_quit(1)
+    stims["array"].set_feature_probs(.7, .7)
+    stim_event(correct_response=1, feedback=False)
+    stims["fix"].draw()
+    win.flip()
+    cregg.wait_check_quit(1)
+
+    slide("""
+          This pattern is made up of small sticks that can change in
+          two different ways:
+
+          - Each stick has a color (red or green)
+          - Each stick has an orientation (left or right)
+          """)
+
+    slide("""
+          For each attribute (color and orientation) there will always
+          be more sticks with one of the two features.
+
+          On each trial, you will be cued to attend to one of the two
+          attributes (color or orientation) and you'll have to decide
+          whether there are more sticks with one or the other feature.
+
+          In other words, on a "color" trial, you'll have to decide
+          whether there are more red or more green sticks.
+          """)
+
+    slide("""
+          Try it yourself. Hit space to see the pattern again and try
+          to make an "orientation" decision (left or right).
+
+          You can just say your answer out loud for now.
+          """)
+
+    stims["fix"].draw()
+    win.flip()
+    cregg.wait_check_quit(1)
+    stims["cue"].set_shape(p.cues["ori"][0])
+    stims["array"].set_feature_probs(.7, .7)
+    stim_event(correct_response=1, feedback=False)
+    stims["fix"].draw()
+    win.flip()
+    cregg.wait_check_quit(1)
+
+    slide("""
+          If you said "right", that's correct!
+
+          You'll get plenty of practice to learn how to make these decisions
+          during the training session today.
+
+          Before we start the practice, there are some important things you
+          need to know about.
+          """)
+
+    slide("""
+          The way you know what kind of decision to make is by the shape
+          presented in the middle of the stimulus.
+
+          There are four different shapes. Two of them mean you should make
+          a color decision, and two of them mean you should make an
+          orientation decision.
+
+          Press space to see each of the shapes along with the rule it cues.
+          """, False)
+
+    for rule, rule_name in zip(["color", "orientation"], ["hue", "ori"]):
+        for cue in [0, 1]:
+
+            stims["cue"].set_shape(p.cues[rule_name][cue])
+            stims["cue"].draw()
+            slide("""
+                  {}
+
+
+
+
+                  """.format(rule))
+
+    slide("""
+          To respond, you'll be using your left and right hands. During
+          behavioral testing, you should press the left and right shift
+          buttons on the keyboard.
+
+          During scanning, we'll ask you to respond with both your index
+          and middle fingers, so you should practice using both during
+          training.
+          """)
+
+    slide("""
+          For orientation decisions, you should press left if you think
+          more sticks are tilted to the left and right if you think more
+          sticks are tilted to the right.
+
+          For color decisions, you should press left if you think more
+          sticks are {} and right if you think more sticks are {}.
+          """.format(*p.hue_features))
+
+    slide("""
+          You'll get feedback on your responses.
+
+          When you make the wrong decision, the fixation point will flicker.
+
+          Nothing will happen when you are correct.
+          """)
+
+    slide("""
+          That was a lot of information!
+
+          Please ask the experimenter if you have any questions.
+          """, False)
 
 
 def prototype(p, win, stims):
