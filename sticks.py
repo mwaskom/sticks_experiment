@@ -1035,13 +1035,12 @@ def training_design(p, rs=None):
 
                     # Assign feature values for each dimension
                     for dim in ["hue", "ori"]:
-                        dim_idx = rs.randint(2)
-                        dim_names = p[dim + "_features"]
-                        dim = dim_names[dim_idx]
-                        block_design.loc[trial, dim] = dim
+                        feat_idx = rs.randint(2)
+                        feature = p[dim + "_features"][feat_idx]
+                        block_design.loc[trial, dim] = feature
 
                         # Determine the proportion of sticks
-                        prop = p.targ_prop if dim_idx else 1 - p.targ_prop
+                        prop = p.targ_prop if feat_idx else 1 - p.targ_prop
                         block_design.loc[trial, dim + "_prop"] = prop
 
                 design.append(block_design.reset_index())
