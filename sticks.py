@@ -382,7 +382,9 @@ def scan(p, win, stims):
     log = cregg.DataLog(p, log_cols)
 
     # Execute the experiment
-    with cregg.PresentationLoop(win, p, log=log, fix=stims["fix"]):
+    with cregg.PresentationLoop(win, p, log=log,
+                                fix=stims["fix"],
+                                exit_func=scan_exit):
 
         stim_event.clock.reset()
 
@@ -412,6 +414,33 @@ def scan(p, win, stims):
 
         # Show the exit text
         stims["finish"].draw()
+
+
+def scan_exit(log):
+    """Report subject and computer performance."""
+    df = pd.read_csv(log.fname)
+    p = log.p
+
+    pd.set_option("display.precision", 4)
+
+    print("")
+    print("Subject: {}".format(p.subject))
+    print("Session: {}".format(p.exp_name))
+    print("Run: {}".format(p.run))
+    print("\nPerformance:")
+    print("\nAccuracy:")
+    print(df.pivot_table("correct", "context", "context_prop"))
+    print("\nRT:")
+    print(df.pivot_table("rt", "context", "context_prop"))
+    print("\nDropped frames:")
+    print("Max: {:d}".format(df.dropped_frames.max()))
+    print("Median: {:.0f}".format(df.dropped_frames.median()))
+    print("\nStimulus time difference:")
+    time_diff = df.stim_time - df.stim_onset
+    print("Mean: {:.2f}".format(time_diff.mean()))
+    print("Max absolute: {:.2f}".format(time_diff.abs().max()))
+    print("")
+
 
 
 # =========================================================================== #
