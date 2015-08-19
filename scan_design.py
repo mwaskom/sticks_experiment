@@ -2,7 +2,7 @@ from __future__ import division, print_function
 from string import letters
 import itertools
 import numpy as np
-from numpy.linalg import pinv
+from numpy.linalg import inv
 from scipy import stats
 import pandas as pd
 from joblib import Parallel, delayed
@@ -153,7 +153,7 @@ def schedule_efficiency(schedule, nbasis, leadout_trs):
     X = glm.DesignMatrix(par, fir, ntp,
                          hpf_cutoff=None,
                          tr=1, oversampling=1).design_matrix.values
-    eff = 1 / np.trace(pinv(X.T.dot(X)))
+    eff = 1 / np.trace(inv(X.T.dot(X)))
     return schedule, eff
 
 

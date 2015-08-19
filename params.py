@@ -224,7 +224,7 @@ scan.update(
     focb_cost_tol=0.01,
 
     eff_seed=1045,
-    eff_n_sched=1000,
+    eff_n_sched=5000,
     eff_geom_p=.33,
     eff_geom_loc=-1,
     eff_geom_support=(0, 12),
