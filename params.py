@@ -195,9 +195,16 @@ psychophys.update(
     targ_props=[.52, .56, .60, .64, .68],
     permutation_attempts=1500,
 
+    strength_file_base="data/{subject}_stimulus_strength",
+    strength_acc_targets=dict(easy=.95, hard=.65),
+    strength_defaults=dict(hue=dict(easy=.15, hard=.05),
+                           ori=dict(easy=.15, hard=.05)),
+
+
 )
 def psychophys_cmdline(parser):
     parser.add_argument("-cycles", type=int, default=1)
+    parser.add_argument("-fit_runs", nargs="*", type=int, default=[1, 2])
 
 
 # --------------------------------------------------------------------- #
@@ -210,11 +217,6 @@ scan.update(
 
     log_base="data/{subject}_scan_run{run:02d}",
     design_base="design/scan_design_{}.csv",
-
-    strength_file_base="data/{subject}_stimulus_strength",
-    strength_acc_targets=dict(easy=.85, hard=.6),
-    strength_defaults=dict(hue=dict(easy=.15, hard=.05),
-                           ori=dict(easy=.15, hard=.05)),
 
     n_designs=16,
     trs_per_trial=6,
