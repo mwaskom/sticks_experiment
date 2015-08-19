@@ -50,7 +50,7 @@ base = dict(
 
     # Fixed color parameters
     lightness=80,
-    chroma=40,
+    chroma=30,
 
     # File with calibrated color values
     color_file="data/{subject}_{monitor}_colors.json",
