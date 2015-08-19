@@ -368,11 +368,11 @@ def scan(p, win, stims):
     # Initialize the stimlus controller
     stim_event = EventEngine(win, p, stims)
 
-    # Show the instructions
-    stims["instruct"].draw()
-
     # Generate the full design object
     design = scan_design(p)
+
+    # Show the instructions
+    stims["instruct"].draw()
 
     # Initialize the data log object
     log_cols = list(design.columns)
