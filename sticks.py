@@ -1223,7 +1223,7 @@ def scan_design(p):
     schedule = pd.read_csv(schedule_fname)
 
     # Load the subject's strength file
-    fname = p.strength_file.format(subject=p.subject)
+    fname = p.strength_file_base.format(subject=p.subject) + ".json"
     try:
         with open(fname) as fid:
             stim_strength = json.load(fid)

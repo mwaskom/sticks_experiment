@@ -211,7 +211,8 @@ scan.update(
     log_base="data/{subject}_scan_run{run:02d}",
     design_base="design/scan_design_{}.csv",
 
-    strength_file="data/{subject}_stimulus_strength.json",
+    strength_file_base="data/{subject}_stimulus_strength",
+    strength_acc_targets=dict(easy=.85, hard=.6),
     strength_defaults=dict(hue=dict(easy=.15, hard=.05),
                            ori=dict(easy=.15, hard=.05)),
 
