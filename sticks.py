@@ -296,7 +296,9 @@ def behavior(p, win, stims, design):
     log = cregg.DataLog(p, log_cols)
 
     # Execute the experiment
-    with cregg.PresentationLoop(win, p, log=log, fix=stims["fix"]):
+    with cregg.PresentationLoop(win, p, log=log,
+                                fix=stims["fix"],
+                                exit_func=behavioral_exit):
 
         stim_event.clock.reset()
 
@@ -337,6 +339,28 @@ def behavior(p, win, stims, design):
 
         # Show the exit text
         stims["finish"].draw()
+
+
+def behavioral_exit(log):
+    """Report subject and computer performance."""
+    df = pd.read_csv(log.fname)
+    p = log.p
+
+    pd.set_option("display.precision", 4)
+
+    print("")
+    print("Subject: {}".format(p.subject))
+    print("Session: {}".format(p.exp_name))
+    print("Run: {}".format(p.run))
+    print("\nPerformance:")
+    print("\nAccuracy:")
+    print(df.pivot_table("correct", "context", "context_prop"))
+    print("\nRT:")
+    print(df.pivot_table("rt", "context", "context_prop"))
+    print("\nDropped frames:")
+    print("Max: {:d}".format(df.dropped_frames.max()))
+    print("Median: {:.0f}".format(df.dropped_frames.median()))
+    print("")
 
 
 def scan(p, win, stims):
