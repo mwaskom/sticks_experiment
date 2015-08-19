@@ -55,7 +55,7 @@ def main(arglist):
         # Plot the data and model fit
         ax = axes[context]
         sns.regplot("context_strength", "correct", data=df_context,
-                    fit_reg=False, x_estimator=np.mean, ci=68,
+                    fit_reg=False, x_estimator=np.mean, x_ci=68,
                     color=colors[context], ax=ax)
         ax.plot(xx, model.eval(xx), colors[context], lw=2)
         ax.set(xlim=(0, .25), ylim=(.4, 1), title=context)
