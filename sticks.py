@@ -1296,6 +1296,12 @@ def scan_design(p):
             prop = (.5 + mul * design.loc[idx, dim + "_strength"])
             design.loc[idx, dim + "_prop"] = prop.astype(np.float).round(2)
 
+    # Get semantic labels for the difficulty
+    design["context_diff"] = np.where(design.context == "hue",
+                                      design.hue_diff, design.ori_diff)
+    design["distract_diff"] = np.where(design.context == "ori",
+                                       design.hue_diff, design.ori_diff)
+
     # Convert ITI duration from TR units to seconds
     design["iti"] = design.iti_trs * p.tr
 
