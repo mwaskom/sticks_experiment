@@ -29,7 +29,7 @@ base = dict(
     quit_keys=["escape", "q"],
     wait_keys=["space"],
     finish_keys=["return"],
-    trigger_keys=["t", "5"],
+    trigger_keys=["t", "5", "quoteleft"],
     resp_keys=["lshift", "rshift"],
     fmri_resp_keys=["4", "9"],
 
