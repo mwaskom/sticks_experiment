@@ -1327,12 +1327,15 @@ def add_design_information(d, p):
                                                            .astype(np.float)
                                                            .round(2))
 
-    # Determine the proportion and strength of the relevent evidence
-    for dim in ["hue", "ori"]:
-        if dim + "_prop" in d:
-            idx = d.context == dim
-            d.loc[idx, "context_strength"] = d.loc[idx, dim + "_strength"]
-            d.loc[idx, "context_prop"] = d.loc[idx, dim + "_prop"]
+    # Determine the proportion and strength of relevent and irrelevant evidence
+    d["context_strength"] = np.where(d["context"] == "hue",
+                                     d.hue_strength, d.ori_strength)
+    d["context_prop"] = np.where(d["context"] == "hue",
+                                 d.hue_prop, d.ori_prop)
+    d["distract_strength"] = np.where(d["context"] == "ori",
+                                     d.hue_strength, d.ori_strength)
+    d["distract_prop"] = np.where(d["context"] == "ori",
+                                  d.hue_prop, d.ori_prop)
 
     # Determine evidence congruency
     hue_resp = d["hue"] == p.hue_features[1]
