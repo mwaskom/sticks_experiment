@@ -64,7 +64,7 @@ def main(arglist):
 
             # Find the estimated strength values
             a = p.strength_acc_targets[diff]
-            s = model.inverse(a)
+            s = min(model.inverse(a), .25)
             stim_strength[context][diff] = s
 
             # Plot them
