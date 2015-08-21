@@ -210,9 +210,10 @@ def instruct(p, win, stims):
           behavioral testing, you should press the left and right shift
           buttons on the keyboard.
 
-          During scanning, we'll ask you to respond with both your index
-          and middle fingers, so you should practice using both during
-          training.
+          Please use both the index and middle finger on each hand. In the
+          scanner, we'll ask you to press the buttons under those fingers
+          at the same time, so you should get used to doing that now.
+
           """)
 
     slide("""
