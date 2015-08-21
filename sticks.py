@@ -432,6 +432,8 @@ def scan_exit(log):
     print(df.pivot_table("correct", "context", "context_diff"))
     print("\nRT:")
     print(df.pivot_table("rt", "context", "context_diff"))
+    print("\nMissed responses:")
+    print(df.groupby("context").rt.apply(lambda d: d.isnull().sum()))
     print("\nDropped frames:")
     print("Max: {:d}".format(df.dropped_frames.max()))
     print("Median: {:.0f}".format(df.dropped_frames.median()))
