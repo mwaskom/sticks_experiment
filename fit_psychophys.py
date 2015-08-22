@@ -1,4 +1,5 @@
 """Estimate stimulus strength for scanning session."""
+import os
 import sys
 import json
 
@@ -81,6 +82,9 @@ def main(arglist):
     json_fname = p.strength_file_base.format(subject=p.subject) + ".json"
     with open(json_fname, "w") as fid:
         json.dump(stim_strength, fid)
+
+    # Open up the image
+    os.system("open {}.png".format(png_name))
 
 
 if __name__ == "__main__":
