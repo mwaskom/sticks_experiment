@@ -14,7 +14,7 @@ def main(arglist):
                   lineColor="white",
                   lineWidth=2).draw()
     win.flip()
-    event.waitKeys(p.quit_keys)
+    event.waitKeys(keyList=p.quit_keys)
 
 
 if __name__ == "__main__":
