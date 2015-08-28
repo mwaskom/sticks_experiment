@@ -24,7 +24,7 @@ def main(arglist):
     print("Accuracy: {:.2f}".format(acc))
     print("Mean RT: {:.2f}".format(rt))
 
-    bonus = acc / (rt * .5) * 15
+    bonus = acc / rt * 30
     print("Bonus: {:.2f}".format(bonus))
 
 if __name__ == "__main__":
